@@ -1,0 +1,15 @@
+# Binary package archives
+app.asar
+app.asar.unpacked/
+
+# Runtime and debug logs
+*.log
+zalo-debug.log
+
+# Index & tooling
+.codegraph/
+**/.codegraph/
+.DS_Store
+
+# Node
+node_modules/
