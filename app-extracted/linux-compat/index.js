@@ -208,13 +208,59 @@ function installWindowHooks() {
   app.on('browser-window-created', (event, win) => {
     if (!win || !win.webContents) return;
 
-    // Toggle DevTools on F12 or Ctrl+Shift+I
+    // Toggle DevTools on F12 or Ctrl+Shift+I, or Toggle Cyberpunk UI on F10
     win.webContents.on('before-input-event', (inputEvent, input) => {
       const isF12 = input.key === 'F12';
       const isCtrlShiftI = input.control && input.shift && input.key && input.key.toLowerCase() === 'i';
 
       if (isF12 || isCtrlShiftI) {
         win.webContents.toggleDevTools();
+      }
+
+      // F10: Toggle Cyberpunk UI Mode
+      if (input.key === 'F10') {
+        win.webContents.executeJavaScript(`
+          (function() {
+            const isCyber = document.body.classList.toggle('cyberpunk');
+            if (isCyber) {
+              document.body.classList.add('dark', 'scanlines');
+              document.body.style.background = '#08090F';
+              localStorage.setItem('za_theme', JSON.stringify({ theme: 'cyberpunk' }));
+              console.log('[Zalo Linux] Cyberpunk UI Mode: ENABLED');
+            } else {
+              document.body.classList.remove('scanlines');
+              document.body.style.background = '';
+              localStorage.setItem('za_theme', JSON.stringify({ theme: 'dark' }));
+              console.log('[Zalo Linux] Cyberpunk UI Mode: DISABLED');
+            }
+          })();
+        `).catch(() => {});
+      }
+    });
+
+    // Auto-enable Cyberpunk theme on DOM ready if ZALO_THEME is set or default
+    win.webContents.on('dom-ready', () => {
+      const shouldEnable = process.env.ZALO_THEME === 'cyberpunk' || !process.env.ZALO_THEME;
+      if (shouldEnable) {
+        win.webContents.executeJavaScript(`
+          (function() {
+            const zaThemeStr = localStorage.getItem('za_theme');
+            let isCyber = true;
+            try {
+              if (zaThemeStr) {
+                const parsed = JSON.parse(zaThemeStr);
+                if (parsed.theme && parsed.theme !== 'cyberpunk') {
+                  isCyber = false;
+                }
+              }
+            } catch(e) {}
+            if (isCyber || ${process.env.ZALO_THEME === 'cyberpunk'}) {
+              document.body.classList.add('cyberpunk', 'dark', 'scanlines');
+              document.body.style.background = '#08090F';
+              console.log('[Zalo Linux] Cyberpunk UI Mode active');
+            }
+          })();
+        `).catch(() => {});
       }
     });
 

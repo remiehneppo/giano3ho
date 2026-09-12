@@ -7,15 +7,21 @@
 					transform: rotate(359deg);
 					-webkit-transform: rotate(359deg);
 				}
-			}</style><script>function applyBgDefaultByTheme() {
+			}</style><link href="cyberpunk-theme.css" rel="stylesheet"><script>function applyBgDefaultByTheme() {
                 const themeSettingStr = window.localStorage.getItem('za_theme');
                 const bgColorDark = '#22262B';
+                const bgColorCyberpunk = '#08090F';
 
                 try {
                     const themeSetting = JSON.parse(themeSettingStr);
                     const theme = themeSetting?.theme;
 
-                    if (theme === "dark") document.body.style.background = bgColorDark;
+                    if (theme === "cyberpunk" || document.body.classList.contains('cyberpunk')) {
+                        document.body.classList.add('cyberpunk', 'dark');
+                        document.body.style.background = bgColorCyberpunk;
+                    } else if (theme === "dark") {
+                        document.body.style.background = bgColorDark;
+                    }
                 } catch (e) {}
             }
 

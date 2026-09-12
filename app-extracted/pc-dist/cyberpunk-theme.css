@@ -1,0 +1,568 @@
+/**
+ * Zalo PC Linux - Cyberpunk Night City UI Theme
+ * High-Tech Neo-Tokyo HUD Aesthetic
+ * Consolidated tokens, surface layers, glowing accents, and HUD components.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap');
+
+/* ==========================================================================
+   1. CYBERPUNK PALETTE & SYSTEM VARIABLE OVERRIDES
+   ========================================================================== */
+
+:root.cyberpunk,
+body.cyberpunk,
+body.PC.cyberpunk,
+body.dark.cyberpunk,
+:root.dark.cyberpunk,
+.cyberpunk {
+  /* Fonts */
+  --cyber-font-mono: 'Share Tech Mono', 'Consolas', 'Courier New', monospace;
+  --cyber-font-display: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Raw Cyberpunk Accents */
+  --cyber-cyan: #00f0ff;
+  --cyber-cyan-glow: rgba(0, 240, 255, 0.45);
+  --cyber-cyan-dim: rgba(0, 240, 255, 0.12);
+  --cyber-cyan-subtle: rgba(0, 240, 255, 0.05);
+
+  --cyber-magenta: #ff2a6d;
+  --cyber-magenta-glow: rgba(255, 42, 109, 0.5);
+  --cyber-magenta-dim: rgba(255, 42, 109, 0.15);
+
+  --cyber-green: #05ffa1;
+  --cyber-green-glow: rgba(5, 255, 161, 0.4);
+
+  --cyber-yellow: #fcee0a;
+  --cyber-yellow-glow: rgba(252, 238, 10, 0.4);
+
+  --cyber-void: #05060a;
+  --cyber-dark-obsidian: #08090f;
+  --cyber-panel-bg: #0c0e18;
+  --cyber-surface-alt: #121522;
+  --cyber-surface-card: rgba(18, 21, 34, 0.9);
+
+  /* Overriding Zalo Base Neutral Tones */
+  --N0: #05060a;
+  --N5: #08090f;
+  --N10: #0c0e18;
+  --N15: #121522;
+  --N20: #191d2e;
+  --N25: #23283e;
+  --N30: #303754;
+  --N40: #49547d;
+  --N50: #6574a8;
+  --N60: #8896cc;
+  --N70: #aab6e4;
+  --N80: #ccd5f3;
+  --N90: #e2e7fa;
+  --N100: #eef2ff;
+  --N200: #f5f7ff;
+  --N300: #ffffff;
+  --N350: #ffffff;
+
+  --DN0: #05060a;
+  --DN5: #08090f;
+  --DN10: #0c0e18;
+  --DN15: #101320;
+  --DN20: #141826;
+  --DN25: #181d2e;
+  --DN30: #1d2338;
+  --DN40: #262e49;
+  --DN50: #333d61;
+  --DN60: #4b598c;
+  --DN70: #6d7fae;
+  --DN80: #93a5cc;
+  --DN90: #b5c4e4;
+  --DN100: #d6e0f5;
+  --DN200: #e6edfb;
+  --DN300: #f2f6fd;
+
+  /* Overriding Brand Blues to Electric Cyber Cyan */
+  --B10: #021217;
+  --B15: #041d24;
+  --B20: #062b36;
+  --B25: #083c4b;
+  --B30: #0c5266;
+  --B40: #0f708a;
+  --B50: #00a4bd;
+  --B55: #00c7d4;
+  --B60: #00f0ff;
+  --B70: #38f8ff;
+  --B80: #70faff;
+  --B85: #9effff;
+  --B90: #c2ffff;
+  --B95: #e0ffff;
+  --B100: #f0ffff;
+
+  /* Overriding Red to Neon Hot Magenta */
+  --R10: #24050e;
+  --R20: #45081a;
+  --R30: #7b0f2e;
+  --R40: #b31442;
+  --R50: #e61957;
+  --R55: #ff2a6d;
+  --R60: #ff4781;
+  --R70: #ff709c;
+  --R80: #ff9ec0;
+  --R85: #ffbfd5;
+  --R90: #ffdfea;
+  --R100: #fff0f5;
+
+  /* Overriding Green to Matrix Acid Green */
+  --G10: #021a10;
+  --G20: #043621;
+  --G30: #075e39;
+  --G40: #0b8a54;
+  --G50: #0fc277;
+  --G55: #05ffa1;
+  --G60: #3affb5;
+  --G70: #75ffcc;
+  --G80: #a8ffe2;
+  --G90: #d4fff0;
+  --G100: #f0fff9;
+
+  /* Surface & Layer Overrides */
+  --bg-default: #08090f;
+  --surface-background: #08090f;
+  --surface-background-subtle: #0c0e18;
+  --surface-alt: #121522;
+  --surface-background-overlay: #181d2e;
+
+  --layer-background: #0c0e18;
+  --layer-background-subtle: #121522;
+  --layer-background-hover: rgba(0, 240, 255, 0.08);
+  --layer-background-disabled: #101320;
+  --layer-background-selected: rgba(0, 240, 255, 0.16);
+  --layer-background-inverse: #00f0ff;
+  --layer-background-inverse-subtle: #181d2e;
+  --layer-background-CSC: #0e111d;
+  --layer-background-pinned: rgba(0, 240, 255, 0.07);
+
+  /* Left Navigation Rail (Navbar) */
+  --layer-background-leftmenu: #05060a;
+  --layer-background-leftmenu-hover: #0c0e18;
+  --layer-background-leftmenu-selected: #121524;
+  --layer-background-navbar-normal: #05060a;
+  --layer-background-navbar-hover: rgba(0, 240, 255, 0.12);
+  --layer-background-navbar-selected: rgba(0, 240, 255, 0.22);
+  --layer-background-navbar-sublevel-normal: #0c0e18;
+  --layer-background-navbar-sublevel-hover: rgba(0, 240, 255, 0.1);
+  --layer-background-navbar-sublevel-selected: rgba(0, 240, 255, 0.2);
+
+  /* Typography & Text */
+  --text-primary: #e6f1ff;
+  --text-secondary: #7b91b0;
+  --text-placeholder: #52637a;
+  --text-disabled: #414f64;
+  --text-on-disabled-color: #262e49;
+  --text-on-color: #05060a;
+  --text-mention: #00f0ff;
+  --text-errors: #ff2a6d;
+  --text-success: #05ffa1;
+  --text-warning: #fcee0a;
+  --text-information: #00f0ff;
+  --text-navbar-sublevel-normal: #e6f1ff;
+  --text-navbar-sublevel-selected: #00f0ff;
+
+  /* Icons */
+  --icon-primary: #00f0ff;
+  --icon-secondary: #7b91b0;
+  --icon-disabled: #414f64;
+  --icon-on-color: #05060a;
+  --icon-errors: #ff2a6d;
+  --icon-success: #05ffa1;
+  --icon-warning: #fcee0a;
+  --icon-information: #00f0ff;
+  --icon-count-noti-enable-bg: #ff2a6d;
+  --icon-count-noti-disable-bg: #414f64;
+  --icon-navbar-normal: #7b91b0;
+  --icon-navbar-disabled: #303754;
+  --icon-navbar-sublevel-normal: #00f0ff;
+  --icon-navbar-sublevel-selected: #00f0ff;
+
+  /* Links & CTAs */
+  --link: #00f0ff;
+  --cta-link: #00f0ff;
+  --cta-link-primary: #00f0ff;
+  --cta-link-hover: #70faff;
+  --cta-link-pressed: #00c7d4;
+  --cta-destruction: #ff2a6d;
+  --cta-destruction-pressed: #b31442;
+  --cta-link-neutral: #e6f1ff;
+
+  /* Borders & Dividers */
+  --border: rgba(0, 240, 255, 0.22);
+  --border-subtle: rgba(0, 240, 255, 0.12);
+  --border-hover: rgba(0, 240, 255, 0.5);
+  --border-disabled: rgba(0, 240, 255, 0.06);
+  --border-focused: #00f0ff;
+  --border-highlight: #ff2a6d;
+  --border-errors: #ff2a6d;
+  --border-success: #05ffa1;
+  --border-warning: #fcee0a;
+  --border-information: #00f0ff;
+  --border-bold: rgba(0, 240, 255, 0.65);
+  --border-on-color: #00f0ff;
+  --border-vanish: rgba(0, 240, 255, 0.05);
+
+  --divider: rgba(0, 240, 255, 0.12);
+  --divider-subtle: rgba(0, 240, 255, 0.06);
+  --divider-bold: rgba(0, 240, 255, 0.35);
+
+  /* Input Fields */
+  --input-field-bg-filled: #0c0e18;
+  --input-field-bg-filled-hover: #121522;
+  --input-field-bg-filled-pressed: #181d2e;
+  --input-field-bg-outline: #0c0e18;
+  --input-field-bg-outline-hover: #121522;
+  --input-field-bg-outline-pressed: rgba(0, 240, 255, 0.25);
+
+  /* Chat Messages (Bubbles) */
+  --blue-message: #092c3a;
+  --blue-message-selected: #0e3f52;
+  --blue-quote: rgba(0, 240, 255, 0.2);
+  --blue-quote-selected: rgba(0, 240, 255, 0.3);
+
+  --white-message: #121522;
+  --white-message-selected: #181d2e;
+  --white-quote: rgba(255, 42, 109, 0.15);
+  --white-quote-selected: rgba(255, 42, 109, 0.25);
+
+  /* Buttons */
+  --button-primary-normal: #00f0ff;
+  --button-primary-hover: #38f8ff;
+  --button-primary-pressed: #00c7d4;
+  --button-primary-disabled: rgba(0, 240, 255, 0.25);
+  --button-primary-text: #05060a;
+  --button-primary-text-disabled: rgba(230, 241, 255, 0.3);
+  --button-primary-focus-bg: #00f0ff;
+  --button-primary-focus-text: #05060a;
+
+  --button-danger-normal: #ff2a6d;
+  --button-danger-hover: #ff4781;
+  --button-danger-pressed: #b31442;
+  --button-danger-text: #ffffff;
+
+  --button-secondary-neutral-normal: #141826;
+  --button-secondary-neutral-hover: #1d2338;
+  --button-secondary-neutral-pressed: #262e49;
+  --button-secondary-neutral-text: #e6f1ff;
+
+  /* Overlays, Curtains & Shadows */
+  --curtain: rgba(5, 6, 10, 0.85);
+  --curtain-bold: rgba(5, 6, 10, 0.95);
+  --shadow-overlay: 0px 0px 24px rgba(0, 240, 255, 0.16), 0px 0px 1px 1px rgba(0, 240, 255, 0.45);
+  --shadow-overflow: 0px 0px 30px rgba(0, 0, 0, 0.9), 0px 0px 15px rgba(0, 240, 255, 0.2);
+  --shadow-bubble: 0px 0px 12px rgba(0, 240, 255, 0.12), inset 0 0 0 1px rgba(0, 240, 255, 0.2);
+
+  --jump-to-message: #0c3b4a;
+  --text-search-highlight: #fcee0a;
+}
+
+/* ==========================================================================
+   2. CYBERPUNK HUD ENHANCEMENTS & SPECIAL EFFECTS
+   ========================================================================== */
+
+/* Global body in cyberpunk mode */
+body.cyberpunk,
+body.dark.cyberpunk {
+  background-color: var(--cyber-dark-obsidian) !important;
+  color: var(--text-primary) !important;
+  position: relative;
+}
+
+/* Cybernetic subtle grid background */
+body.cyberpunk::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(to right, rgba(0, 240, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 240, 255, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  z-index: 999998;
+}
+
+/* Subtle CRT Scanlines */
+body.cyberpunk.scanlines::after,
+body.cyberpunk .cyber-scanlines-active::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  opacity: 0.7;
+  z-index: 999999;
+}
+
+/* Left Navigation Rail Styling */
+body.cyberpunk .left-menu,
+body.cyberpunk nav.nav-rail,
+body.cyberpunk .main-nav {
+  background-color: var(--cyber-void) !important;
+  border-right: 1px solid rgba(0, 240, 255, 0.25) !important;
+  box-shadow: 2px 0 15px rgba(0, 0, 0, 0.7);
+}
+
+/* Active tab indicator - Neon laser line */
+body.cyberpunk .left-menu-item.active,
+body.cyberpunk .nav-item.active,
+body.cyberpunk [class*="activeItem"] {
+  position: relative;
+  background: rgba(0, 240, 255, 0.15) !important;
+}
+
+body.cyberpunk .left-menu-item.active::before,
+body.cyberpunk .nav-item.active::before,
+body.cyberpunk [class*="activeItem"]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: var(--cyber-cyan);
+  box-shadow: 0 0 12px var(--cyber-cyan);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Conversation / Thread List */
+body.cyberpunk .conv-list,
+body.cyberpunk .chat-list,
+body.cyberpunk [class*="messageList"] {
+  background-color: var(--cyber-dark-obsidian) !important;
+  border-right: 1px solid rgba(0, 240, 255, 0.15) !important;
+}
+
+/* Conversation Item hover / selected */
+body.cyberpunk .conv-item:hover,
+body.cyberpunk [class*="conv-item"]:hover {
+  background: rgba(0, 240, 255, 0.06) !important;
+  border-left: 2px solid rgba(0, 240, 255, 0.4);
+}
+
+body.cyberpunk .conv-item.active,
+body.cyberpunk [class*="conv-item"].active {
+  background: rgba(0, 240, 255, 0.12) !important;
+  border-left: 3px solid var(--cyber-cyan) !important;
+  box-shadow: inset 5px 0 12px rgba(0, 240, 255, 0.1);
+}
+
+/* Avatars with Chamfered & Glowing Borders */
+body.cyberpunk .avatar,
+body.cyberpunk .z-avatar,
+body.cyberpunk img[class*="avatar"] {
+  border-radius: 4px !important;
+  border: 1px solid rgba(0, 240, 255, 0.4) !important;
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.25);
+  transition: all 0.2s ease;
+}
+
+body.cyberpunk .avatar:hover,
+body.cyberpunk .z-avatar:hover {
+  border-color: var(--cyber-cyan) !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.55);
+}
+
+/* Online status indicators */
+body.cyberpunk [class*="onlineStatus"],
+body.cyberpunk .online-dot {
+  background-color: var(--cyber-green) !important;
+  box-shadow: 0 0 8px var(--cyber-green) !important;
+  border-radius: 2px !important;
+}
+
+/* Notification Badge */
+body.cyberpunk [class*="badge"],
+body.cyberpunk .unread-badge,
+body.cyberpunk .noti-badge {
+  background: var(--cyber-magenta) !important;
+  color: #fff !important;
+  font-family: var(--cyber-font-mono) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 10px var(--cyber-magenta-glow) !important;
+  border-radius: 2px !important;
+  letter-spacing: 0.5px;
+}
+
+/* Search bar HUD styling */
+body.cyberpunk input[type="text"],
+body.cyberpunk input[type="search"],
+body.cyberpunk .search-input {
+  background: rgba(12, 14, 24, 0.9) !important;
+  border: 1px solid rgba(0, 240, 255, 0.25) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--cyber-font-display) !important;
+  font-size: 0.95rem !important;
+  border-radius: 3px !important;
+  transition: all 0.25s ease;
+}
+
+body.cyberpunk input[type="text"]:focus,
+body.cyberpunk input[type="search"]:focus,
+body.cyberpunk .search-input:focus {
+  border-color: var(--cyber-cyan) !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.35) !important;
+  outline: none !important;
+}
+
+/* Chat Message Bubbles */
+/* Outgoing Messages */
+body.cyberpunk .bubble-outgoing,
+body.cyberpunk [class*="me-bubble"],
+body.cyberpunk .card-bubble[class*="--me"] {
+  background: linear-gradient(135deg, rgba(0, 75, 105, 0.7) 0%, rgba(0, 40, 60, 0.9) 100%) !important;
+  border: 1px solid rgba(0, 240, 255, 0.45) !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.18) !important;
+  color: #ffffff !important;
+  border-radius: 6px 1px 6px 6px !important;
+}
+
+/* Incoming Messages */
+body.cyberpunk .bubble-incoming,
+body.cyberpunk [class*="friend-bubble"],
+body.cyberpunk .card-bubble:not([class*="--me"]) {
+  background: linear-gradient(135deg, rgba(20, 24, 38, 0.9) 0%, rgba(13, 16, 26, 0.95) 100%) !important;
+  border: 1px solid rgba(255, 42, 109, 0.3) !important;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5) !important;
+  color: #dfe8f5 !important;
+  border-radius: 1px 6px 6px 6px !important;
+}
+
+/* Chat input box */
+body.cyberpunk .chat-input-container,
+body.cyberpunk [class*="chat-input"] {
+  background: var(--cyber-panel-bg) !important;
+  border-top: 1px solid rgba(0, 240, 255, 0.2) !important;
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.6);
+}
+
+/* Send / Action Buttons */
+body.cyberpunk button.btn-primary,
+body.cyberpunk [class*="btn-primary"] {
+  background: var(--cyber-cyan) !important;
+  color: var(--cyber-void) !important;
+  font-family: var(--cyber-font-display) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  border: none !important;
+  border-radius: 2px !important;
+  box-shadow: 0 0 14px var(--cyber-cyan-glow) !important;
+  transition: all 0.2s ease !important;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+
+body.cyberpunk button.btn-primary:hover,
+body.cyberpunk [class*="btn-primary"]:hover {
+  background: #38f8ff !important;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.75) !important;
+  transform: translateY(-1px);
+}
+
+/* High-tech Custom Neon Scrollbars */
+body.cyberpunk ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+body.cyberpunk ::-webkit-scrollbar-track {
+  background: rgba(5, 6, 10, 0.8);
+}
+
+body.cyberpunk ::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.35);
+  border-radius: 3px;
+  box-shadow: inset 0 0 6px var(--cyber-cyan-glow);
+}
+
+body.cyberpunk ::-webkit-scrollbar-thumb:hover {
+  background: var(--cyber-cyan);
+  box-shadow: 0 0 10px var(--cyber-cyan);
+}
+
+/* Cyber Telemetry Micro-Badge */
+.cyber-telemetry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-family: var(--cyber-font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--cyber-cyan);
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+}
+
+.cyber-telemetry-badge--alert {
+  color: var(--cyber-magenta);
+  background: rgba(255, 42, 109, 0.08);
+  border-color: rgba(255, 42, 109, 0.3);
+}
+
+.cyber-telemetry-badge--success {
+  color: var(--cyber-green);
+  background: rgba(5, 255, 161, 0.08);
+  border-color: rgba(5, 255, 161, 0.3);
+}
+
+/* ==========================================================================
+   3. LOGIN SCREEN CYBERPUNK STYLING
+   ========================================================================== */
+
+body.PC.cyberpunk #login-splash-screen {
+  background-color: var(--cyber-void) !important;
+}
+
+body.PC.cyberpunk .login-container,
+body.PC.cyberpunk #app > div {
+  background: rgba(12, 14, 24, 0.95) !important;
+  border: 1px solid rgba(0, 240, 255, 0.35) !important;
+  box-shadow: 0 0 35px rgba(0, 0, 0, 0.9), 0 0 15px rgba(0, 240, 255, 0.25) !important;
+  border-radius: 4px !important;
+  position: relative;
+}
+
+/* Top accent laser bar on login box */
+body.PC.cyberpunk .login-container::before,
+body.PC.cyberpunk #app > div::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyber-magenta) 0%, var(--cyber-cyan) 50%, var(--cyber-green) 100%);
+  box-shadow: 0 0 12px var(--cyber-cyan);
+}
+
+/* QR Code Cyber Frame */
+body.PC.cyberpunk .qr-container,
+body.PC.cyberpunk [class*="qrCode"] {
+  padding: 12px !important;
+  background: rgba(5, 6, 10, 0.9) !important;
+  border: 1px solid var(--cyber-cyan) !important;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.3) !important;
+  position: relative;
+}

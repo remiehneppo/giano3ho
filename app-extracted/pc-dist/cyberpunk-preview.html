@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zalo PC Linux // Cyberpunk Night City Interface</title>
+  <link href="cyberpunk-theme.css" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--cyber-void);
+      color: var(--text-primary);
+      font-family: var(--cyber-font-display);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+    }
+
+    /* Outer Shell - Simulating Electron Window */
+    .app-window {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      background: var(--cyber-dark-obsidian);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      box-shadow: 0 0 35px rgba(0, 0, 0, 0.9), inset 0 0 1px rgba(0, 240, 255, 0.4);
+    }
+
+    /* Top Titlebar */
+    .titlebar {
+      height: 38px;
+      background: var(--cyber-void);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      -webkit-app-region: drag;
+    }
+
+    .titlebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--cyber-cyan);
+      text-transform: uppercase;
+    }
+
+    .titlebar-telemetry {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--cyber-font-mono);
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
+
+    .telemetry-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .telemetry-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyber-green);
+      box-shadow: 0 0 8px var(--cyber-green);
+      animation: pulse-dot 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.1); }
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    .win-btn {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .win-btn--close {
+      border-color: var(--cyber-magenta);
+    }
+    .win-btn--close:hover {
+      background: var(--cyber-magenta);
+      box-shadow: 0 0 10px var(--cyber-magenta);
+    }
+    .win-btn--min:hover, .win-btn--max:hover {
+      background: var(--cyber-cyan);
+      box-shadow: 0 0 10px var(--cyber-cyan);
+    }
+
+    /* Main Window Body */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* 1. Navigation Rail (Leftmost) */
+    .nav-rail {
+      width: 68px;
+      background: var(--cyber-void);
+      border-right: 1px solid rgba(0, 240, 255, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 20px;
+      z-index: 10;
+    }
+
+    .nav-avatar-box {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .nav-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 4px;
+      border: 1px solid var(--cyber-cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+      object-fit: cover;
+      display: block;
+      background: #111422;
+    }
+
+    .nav-avatar-ring {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 10px;
+      height: 10px;
+      background: var(--cyber-green);
+      border: 1px solid #000;
+      border-radius: 2px;
+      box-shadow: 0 0 8px var(--cyber-green);
+    }
+
+    .nav-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      align-items: center;
+    }
+
+    .nav-item {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .nav-item:hover {
+      color: var(--cyber-cyan);
+      background: rgba(0, 240, 255, 0.08);
+    }
+
+    .nav-item.active {
+      color: var(--cyber-cyan);
+      background: rgba(0, 240, 255, 0.15);
+      border-left: 3px solid var(--cyber-cyan);
+      box-shadow: inset 5px 0 10px rgba(0, 240, 255, 0.15);
+    }
+
+    .nav-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: var(--cyber-magenta);
+      color: #fff;
+      font-size: 0.65rem;
+      font-family: var(--cyber-font-mono);
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 2px;
+      box-shadow: 0 0 8px var(--cyber-magenta);
+    }
+
+    .nav-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+    }
+
+    /* 2. Conversation List (Middle Column) */
+    .sidebar-chats {
+      width: 330px;
+      background: var(--cyber-dark-obsidian);
+      border-right: 1px solid rgba(0, 240, 255, 0.18);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-search-box {
+      padding: 14px 14px 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.12);
+    }
+
+    .search-bar-inner {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input-field {
+      width: 100%;
+      height: 36px;
+      background: rgba(12, 14, 24, 0.95);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 3px;
+      padding: 0 12px 0 34px;
+      color: var(--text-primary);
+      font-family: var(--cyber-font-display);
+      font-size: 0.9rem;
+      transition: all 0.25s;
+    }
+
+    .search-input-field:focus {
+      outline: none;
+      border-color: var(--cyber-cyan);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      color: var(--text-secondary);
+      pointer-events: none;
+    }
+
+    .chat-filters {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+    }
+
+    .filter-pill {
+      font-family: var(--cyber-font-mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 2px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .filter-pill:hover {
+      color: var(--cyber-cyan);
+      border-color: var(--cyber-cyan);
+    }
+
+    .filter-pill.active {
+      background: rgba(0, 240, 255, 0.15);
+      color: var(--cyber-cyan);
+      border-color: var(--cyber-cyan);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+    }
+
+    /* Conversation Items */
+    .chat-list-scroll {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .chat-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+      position: relative;
+      transition: background 0.18s, border-color 0.18s;
+    }
+
+    .chat-item:hover {
+      background: rgba(0, 240, 255, 0.06);
+    }
+
+    .chat-item.active {
+      background: rgba(0, 240, 255, 0.12);
+      border-left: 3px solid var(--cyber-cyan);
+      box-shadow: inset 6px 0 12px rgba(0, 240, 255, 0.1);
+    }
+
+    .chat-avatar-wrapper {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .chat-avatar-img {
+      width: 44px;
+      height: 44px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      background: #141826;
+      object-fit: cover;
+    }
+
+    .chat-status-indicator {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+      background: var(--cyber-green);
+      box-shadow: 0 0 6px var(--cyber-green);
+      border: 1px solid #000;
+    }
+
+    .chat-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .chat-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .chat-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-tag {
+      font-family: var(--cyber-font-mono);
+      font-size: 0.65rem;
+      padding: 1px 4px;
+      border-radius: 2px;
+      margin-left: 6px;
+      background: rgba(0, 240, 255, 0.1);
+      color: var(--cyber-cyan);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+    }
+
+    .chat-tag--corp {
+      background: rgba(255, 42, 109, 0.1);
+      color: var(--cyber-magenta);
+      border-color: rgba(255, 42, 109, 0.3);
+    }
+
+    .chat-time {
+      font-family: var(--cyber-font-mono);
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .chat-snippet-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chat-snippet {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .unread-pill {
+      background: var(--cyber-magenta);
+      color: #fff;
+      font-family: var(--cyber-font-mono);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 2px;
+      box-shadow: 0 0 8px var(--cyber-magenta-glow);
+      flex-shrink: 0;
+    }
+
+    /* 3. Main Chat Viewport */
+    .viewport-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--cyber-panel-bg);
+      position: relative;
+    }
+
+    /* Chat Viewport Header */
+    .chat-header {
+      height: 64px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+      background: var(--cyber-dark-obsidian);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .active-peer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .active-peer-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .active-peer-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .active-peer-meta {
+      font-family: var(--cyber-font-mono);
+      font-size: 0.75rem;
+      color: var(--cyber-green);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hud-tool-btn {
+      padding: 6px 12px;
+      font-family: var(--cyber-font-mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: rgba(12, 16, 26, 0.9);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--cyber-cyan);
+      border-radius: 2px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .hud-tool-btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--cyber-cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+    }
+
+    .hud-tool-btn--active {
+      background: rgba(0, 240, 255, 0.25);
+      color: #fff;
+      box-shadow: 0 0 12px var(--cyber-cyan-glow);
+    }
+
+    /* Message Timeline */
+    .message-stream {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .stream-system-banner {
+      align-self: center;
+      font-family: var(--cyber-font-mono);
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      background: rgba(0, 240, 255, 0.05);
+      border: 1px dashed rgba(0, 240, 255, 0.25);
+      padding: 4px 14px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .message-row {
+      display: flex;
+      gap: 10px;
+      max-width: 75%;
+    }
+
+    .message-row--incoming {
+      align-self: flex-start;
+    }
+
+    .message-row--outgoing {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .msg-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      object-fit: cover;
+      background: #141826;
+      flex-shrink: 0;
+    }
+
+    .msg-body-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 4px;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      position: relative;
+    }
+
+    .msg-bubble--incoming {
+      background: linear-gradient(135deg, rgba(20, 24, 38, 0.9) 0%, rgba(13, 16, 26, 0.95) 100%);
+      border: 1px solid rgba(255, 42, 109, 0.3);
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+      color: #dfe8f5;
+    }
+
+    .msg-bubble--outgoing {
+      background: linear-gradient(135deg, rgba(0, 75, 105, 0.75) 0%, rgba(0, 40, 60, 0.92) 100%);
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.18);
+      color: #ffffff;
+    }
+
+    .msg-meta {
+      font-family: var(--cyber-font-mono);
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 8px;
+    }
+
+    .message-row--outgoing .msg-meta {
+      justify-content: flex-end;
+      color: var(--cyber-cyan);
+    }
+
+    .media-card-schematic {
+      margin-top: 8px;
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      background: rgba(5, 8, 14, 0.85);
+      padding: 10px;
+      border-radius: 3px;
+    }
+
+    .schematic-header {
+      font-family: var(--cyber-font-mono);
+      font-size: 0.72rem;
+      color: var(--cyber-yellow);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .schematic-canvas {
+      width: 100%;
+      height: 60px;
+      background: repeating-linear-gradient(0deg, rgba(0, 240, 255, 0.04), rgba(0, 240, 255, 0.04) 1px, transparent 1px, transparent 8px);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .schematic-wave {
+      width: 90%;
+      height: 28px;
+      stroke: var(--cyber-cyan);
+      fill: none;
+    }
+
+    /* Input Console Area */
+    .input-console {
+      background: var(--cyber-dark-obsidian);
+      border-top: 1px solid rgba(0, 240, 255, 0.25);
+      padding: 12px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.7);
+    }
+
+    .input-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--text-secondary);
+    }
+
+    .tool-icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .tool-icon-btn:hover {
+      color: var(--cyber-cyan);
+      transform: scale(1.1);
+    }
+
+    .input-prompt-box {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .input-textarea {
+      flex: 1;
+      height: 48px;
+      background: rgba(12, 14, 24, 0.95);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 3px;
+      padding: 12px 14px;
+      color: var(--text-primary);
+      font-family: var(--cyber-font-display);
+      font-size: 0.95rem;
+      resize: none;
+      transition: all 0.25s;
+    }
+
+    .input-textarea:focus {
+      outline: none;
+      border-color: var(--cyber-cyan);
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
+    }
+
+    .btn-transmit {
+      height: 48px;
+      padding: 0 24px;
+      background: var(--cyber-cyan);
+      color: var(--cyber-void);
+      font-family: var(--cyber-font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 0 16px var(--cyber-cyan-glow);
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+      transition: all 0.2s;
+    }
+
+    .btn-transmit:hover {
+      background: #38f8ff;
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.8);
+      transform: translateY(-1px);
+    }
+
+    .btn-transmit:active {
+      transform: translateY(1px);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    }
+  </style>
+</head>
+<body class="cyberpunk scanlines">
+
+  <div class="app-window">
+    <!-- Top Window Titlebar -->
+    <header class="titlebar">
+      <div class="titlebar-brand">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+        <span>ZALO // NIGHT_CITY_NET v26.7.10 [LINUX_COMPAT]</span>
+      </div>
+
+      <div class="titlebar-telemetry">
+        <div class="telemetry-item">
+          <span class="telemetry-dot"></span>
+          <span>NODE: NC_WATSON_SECURE</span>
+        </div>
+        <div class="telemetry-item">
+          <span>LATENCY: 11ms</span>
+        </div>
+        <div class="telemetry-item">
+          <span class="cyber-telemetry-badge cyber-telemetry-badge--success">IDB_ENGINE: OK</span>
+        </div>
+      </div>
+
+      <div class="window-controls">
+        <button class="win-btn win-btn--min" title="Minimize"></button>
+        <button class="win-btn win-btn--max" title="Maximize"></button>
+        <button class="win-btn win-btn--close" title="Close"></button>
+      </div>
+    </header>
+
+    <!-- App Body -->
+    <div class="app-body">
+      <!-- 1. Left Nav Rail -->
+      <nav class="nav-rail">
+        <div class="nav-avatar-box" title="V // Netrunner ID: 0x7F9B">
+          <div class="nav-avatar" style="display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--cyber-cyan); font-size:1.2rem;">
+            V
+          </div>
+          <span class="nav-avatar-ring"></span>
+        </div>
+
+        <div class="nav-menu">
+          <div class="nav-item active" title="Chats">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span class="nav-badge">3</span>
+          </div>
+
+          <div class="nav-item" title="Contacts">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+
+          <div class="nav-item" title="To-Do / Cyber Tasks">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 11 12 14 22 4"></polyline>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+          </div>
+
+          <div class="nav-item" title="Encrypted Cloud Vault">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+            </svg>
+          </div>
+        </div>
+
+        <div class="nav-footer">
+          <div class="nav-item" id="btn-toggle-scanlines" title="Toggle CRT Scanlines">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+
+          <div class="nav-item" title="Settings (F10)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </div>
+        </div>
+      </nav>
+
+      <!-- 2. Middle Conversation List -->
+      <aside class="sidebar-chats">
+        <div class="chat-search-box">
+          <div class="search-bar-inner">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="search" class="search-input-field" placeholder="SEARCH NETWORK // CALLSIGNS, IDS...">
+          </div>
+
+          <div class="chat-filters">
+            <div class="filter-pill active">ALL [14]</div>
+            <div class="filter-pill">UNREAD [3]</div>
+            <div class="filter-pill">CORP</div>
+            <div class="filter-pill">MOX / EDGERUNNERS</div>
+          </div>
+        </div>
+
+        <div class="chat-list-scroll">
+          <!-- Item 1: Active Judy Alvarez -->
+          <div class="chat-item active" data-name="Judy Alvarez" data-role="MOX // TECHIE" data-faction="MOX" data-status="ONLINE // LIZZIE'S BAR">
+            <div class="chat-avatar-wrapper">
+              <div class="chat-avatar-img" style="display:flex;align-items:center;justify-content:center;color:var(--cyber-cyan);font-weight:700;">JA</div>
+              <span class="chat-status-indicator"></span>
+            </div>
+            <div class="chat-info">
+              <div class="chat-header-row">
+                <span class="chat-name">Judy Alvarez</span>
+                <span class="chat-tag">MOX</span>
+                <span class="chat-time">14:02 // NET</span>
+              </div>
+              <div class="chat-snippet-row">
+                <span class="chat-snippet">Zero trace. Neural handshake was completely spoofed.</span>
+                <span class="unread-pill">2</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 2: Johnny Silverhand -->
+          <div class="chat-item" data-name="Johnny Silverhand" data-role="ROCKERBOY // CONSTRUCT" data-faction="REBEL" data-status="SYNCED // NEURAL RELIC">
+            <div class="chat-avatar-wrapper">
+              <div class="chat-avatar-img" style="display:flex;align-items:center;justify-content:center;color:var(--cyber-magenta);font-weight:700;">JS</div>
+              <span class="chat-status-indicator" style="background:var(--cyber-magenta);box-shadow:0 0 6px var(--cyber-magenta);"></span>
+            </div>
+            <div class="chat-info">
+              <div class="chat-header-row">
+                <span class="chat-name">Johnny Silverhand</span>
+                <span class="chat-tag chat-tag--corp">RELIC</span>
+                <span class="chat-time">13:45</span>
+              </div>
+              <div class="chat-snippet-row">
+                <span class="chat-snippet">Wake up Samurai, we have a city to burn.</span>
+                <span class="unread-pill">1</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 3: Panam Palmer -->
+          <div class="chat-item" data-name="Panam Palmer" data-role="ALDECALDOS // NOMAD" data-faction="NOMAD" data-status="OFFLINE // BADLANDS">
+            <div class="chat-avatar-wrapper">
+              <div class="chat-avatar-img" style="display:flex;align-items:center;justify-content:center;color:var(--cyber-yellow);font-weight:700;">PP</div>
+              <span class="chat-status-indicator" style="background:#52637a;box-shadow:none;"></span>
+            </div>
+            <div class="chat-info">
+              <div class="chat-header-row">
+                <span class="chat-name">Panam Palmer</span>
+                <span class="chat-tag">NOMAD</span>
+                <span class="chat-time">11:15</span>
+              </div>
+              <div class="chat-snippet-row">
+                <span class="chat-snippet">Meeting at the badlands checkpoint tonight.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 4: Viktor Vector -->
+          <div class="chat-item" data-name="Viktor Vector" data-role="RIPPERDOC // WATSON" data-faction="MEDIC" data-status="ONLINE // CLINIC">
+            <div class="chat-avatar-wrapper">
+              <div class="chat-avatar-img" style="display:flex;align-items:center;justify-content:center;color:var(--cyber-green);font-weight:700;">VV</div>
+              <span class="chat-status-indicator"></span>
+            </div>
+            <div class="chat-info">
+              <div class="chat-header-row">
+                <span class="chat-name">Viktor Vector</span>
+                <span class="chat-tag">DOC</span>
+                <span class="chat-time">YESTERDAY</span>
+              </div>
+              <div class="chat-snippet-row">
+                <span class="chat-snippet">Your cyberware diagnostic passed without leaks.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 5: Goro Takemura -->
+          <div class="chat-item" data-name="Goro Takemura" data-role="ARASAKA EX-HONOR" data-faction="CORP" data-status="CAUTION // TRACKED">
+            <div class="chat-avatar-wrapper">
+              <div class="chat-avatar-img" style="display:flex;align-items:center;justify-content:center;color:#ccd5f3;font-weight:700;">GT</div>
+              <span class="chat-status-indicator" style="background:var(--cyber-yellow);"></span>
+            </div>
+            <div class="chat-info">
+              <div class="chat-header-row">
+                <span class="chat-name">Goro Takemura</span>
+                <span class="chat-tag chat-tag--corp">ARASAKA</span>
+                <span class="chat-time">YESTERDAY</span>
+              </div>
+              <div class="chat-snippet-row">
+                <span class="chat-snippet">We must proceed with utmost caution.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 3. Active Chat Viewport -->
+      <main class="viewport-chat">
+        <!-- Header -->
+        <div class="chat-header">
+          <div class="active-peer">
+            <div class="chat-avatar-img" id="header-avatar" style="width:42px;height:42px;display:flex;align-items:center;justify-content:center;color:var(--cyber-cyan);font-weight:700;">
+              JA
+            </div>
+            <div class="active-peer-details">
+              <div class="active-peer-name">
+                <span id="header-peer-name">Judy Alvarez</span>
+                <span class="cyber-telemetry-badge" id="header-peer-role">MOX // TECHIE</span>
+              </div>
+              <div class="active-peer-meta">
+                <span id="header-peer-status">ONLINE // LIZZIE'S BAR</span>
+                <span>•</span>
+                <span style="color:var(--cyber-cyan);">[E2EE: 4096-BIT QUANTUM CRYPT]</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="header-actions">
+            <button class="hud-tool-btn" id="btn-holo-call">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <span>HOLO_AUDIO</span>
+            </button>
+
+            <button class="hud-tool-btn hud-tool-btn--active" id="btn-holo-video">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+              </svg>
+              <span>OPTICAL_LINK</span>
+            </button>
+
+            <button class="hud-tool-btn" title="Search Message Archives">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Message Stream Timeline -->
+        <div class="message-stream" id="chat-stream">
+          <div class="stream-system-banner">
+            [TRANSMISSION COMMENCED // SECURE SUBNET ID: 0x8849-NC-WTS]
+          </div>
+
+          <!-- Incoming 1 -->
+          <div class="message-row message-row--incoming">
+            <div class="msg-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--cyber-cyan);font-weight:700;">JA</div>
+            <div class="msg-body-wrapper">
+              <div class="msg-bubble msg-bubble--incoming">
+                V, take a look at this raw braindance capture timeline from yesterday's club incident.
+              </div>
+              <div class="media-card-schematic">
+                <div class="schematic-header">
+                  <span>TELEMETRY_DUMP // BRAINDANCE_STREAM</span>
+                  <span>SYNC: 99.8%</span>
+                </div>
+                <div class="schematic-canvas">
+                  <svg class="schematic-wave" viewBox="0 0 300 40">
+                    <path d="M0,20 Q25,5 50,20 T100,20 T150,5 T200,35 T250,15 T300,20" stroke="#00f0ff" stroke-width="2" fill="none"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="msg-meta">
+                <span>14:00 // NET</span>
+                <span>STATUS: VERIFIED</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Outgoing 1 -->
+          <div class="message-row message-row--outgoing">
+            <div class="msg-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--cyber-cyan);font-weight:700;">V</div>
+            <div class="msg-body-wrapper">
+              <div class="msg-bubble msg-bubble--outgoing">
+                Looks clean, Judy. Did Arasaka ice detect any packet probes during extraction?
+              </div>
+              <div class="msg-meta">
+                <span>14:01 // NET</span>
+                <span>[DELIVERED &amp; DECRYPTED]</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Incoming 2 -->
+          <div class="message-row message-row--incoming">
+            <div class="msg-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--cyber-cyan);font-weight:700;">JA</div>
+            <div class="msg-body-wrapper">
+              <div class="msg-bubble msg-bubble--incoming">
+                Zero trace. Neural handshake was completely spoofed. We're clear on Watson subnet.
+              </div>
+              <div class="msg-meta">
+                <span>14:02 // NET</span>
+                <span>STATUS: VERIFIED</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Console -->
+        <div class="input-console">
+          <div class="input-toolbar">
+            <button class="tool-icon-btn" title="Text Styling">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                <line x1="9" y1="20" x2="15" y2="20"></line>
+                <line x1="12" y1="4" x2="12" y2="20"></line>
+              </svg>
+            </button>
+            <button class="tool-icon-btn" title="Emoticons">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+              </svg>
+            </button>
+            <button class="tool-icon-btn" title="Attach Binary / Payload">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+              </svg>
+            </button>
+            <button class="tool-icon-btn" title="Capture Screen / Neural Feed">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </button>
+            <button class="tool-icon-btn" title="Voice Synthesizer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="input-prompt-box">
+            <textarea class="input-textarea" id="msg-input" placeholder="Transmit encrypted packet to Judy Alvarez... (Press Enter to transmit)"></textarea>
+            <button class="btn-transmit" id="btn-send">TRANSMIT</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // Audio synthesizer for cyber feedback
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq = 880, duration = 0.04, type = 'sine') {
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    // Toggle CRT Scanlines
+    const btnScanlines = document.getElementById('btn-toggle-scanlines');
+    btnScanlines.addEventListener('click', () => {
+      playBeep(1200, 0.05, 'square');
+      document.body.classList.toggle('scanlines');
+    });
+
+    // Message sending interaction
+    const chatStream = document.getElementById('chat-stream');
+    const msgInput = document.getElementById('msg-input');
+    const btnSend = document.getElementById('btn-send');
+
+    function sendCurrentMessage() {
+      const text = msgInput.value.trim();
+      if (!text) return;
+
+      playBeep(1760, 0.06, 'triangle');
+
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} // NET`;
+
+      const msgRow = document.createElement('div');
+      msgRow.className = 'message-row message-row--outgoing';
+      msgRow.innerHTML = `
+        <div class="msg-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--cyber-cyan);font-weight:700;">V</div>
+        <div class="msg-body-wrapper">
+          <div class="msg-bubble msg-bubble--outgoing">${escapeHtml(text)}</div>
+          <div class="msg-meta">
+            <span>${timeStr}</span>
+            <span>[TRANSMITTED]</span>
+          </div>
+        </div>
+      `;
+
+      chatStream.appendChild(msgRow);
+      msgInput.value = '';
+      chatStream.scrollTop = chatStream.scrollHeight;
+
+      // Simulated auto-reply after 1.5s
+      setTimeout(() => {
+        simulateReply();
+      }, 1400);
+    }
+
+    function simulateReply() {
+      playBeep(980, 0.08, 'sine');
+      const replies = [
+        "Packet decoded. Injecting fix into neural daemon now.",
+        "Acknowledged, V. Monitoring the grid for counter-measures.",
+        "Signal integrity confirmed. Watson relay is standing by.",
+        "Got it. Stay off Arasaka subnets for the next hour."
+      ];
+      const reply = replies[Math.floor(Math.random() * replies.length)];
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} // NET`;
+
+      const peerName = document.getElementById('header-peer-name').innerText;
+      const initials = peerName.split(' ').map(n => n[0]).join('').substring(0, 2);
+
+      const msgRow = document.createElement('div');
+      msgRow.className = 'message-row message-row--incoming';
+      msgRow.innerHTML = `
+        <div class="msg-avatar" style="display:flex;align-items:center;justify-content:center;color:var(--cyber-cyan);font-weight:700;">${initials}</div>
+        <div class="msg-body-wrapper">
+          <div class="msg-bubble msg-bubble--incoming">${escapeHtml(reply)}</div>
+          <div class="msg-meta">
+            <span>${timeStr}</span>
+            <span>STATUS: VERIFIED</span>
+          </div>
+        </div>
+      `;
+
+      chatStream.appendChild(msgRow);
+      chatStream.scrollTop = chatStream.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    btnSend.addEventListener('click', sendCurrentMessage);
+    msgInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendCurrentMessage();
+      }
+    });
+
+    // Conversation switching
+    const chatItems = document.querySelectorAll('.chat-item');
+    chatItems.forEach(item => {
+      item.addEventListener('click', () => {
+        playBeep(640, 0.03, 'sine');
+        chatItems.forEach(c => c.classList.remove('active'));
+        item.classList.add('active');
+
+        const name = item.dataset.name;
+        const role = item.dataset.role;
+        const status = item.dataset.status;
+        const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2);
+
+        document.getElementById('header-peer-name').innerText = name;
+        document.getElementById('header-peer-role').innerText = role;
+        document.getElementById('header-peer-status').innerText = status;
+        document.getElementById('header-avatar').innerText = initials;
+        msgInput.placeholder = `Transmit encrypted packet to ${name}... (Press Enter to transmit)`;
+      });
+    });
+  </script>
+</body>
+</html>
