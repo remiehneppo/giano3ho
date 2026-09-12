@@ -35,8 +35,12 @@ function bootstrap() {
     perf.record(perf.STARTUP);
   }
 
-  // Database and schema migration
-  require('./main-dist/migration');
+  // Database and schema migration (safely wrapped on Linux where IndexedDB is the primary engine)
+  try {
+    require('./main-dist/migration');
+  } catch (err) {
+    console.warn('[Zalo Linux] SQLite migration skipped or non-fatal:', err.message);
+  }
   if (typeof perf !== 'undefined' && perf.record) {
     perf.record(perf.MIGRATION_DONE);
   }

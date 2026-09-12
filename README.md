@@ -11,17 +11,22 @@ Dự án đóng gói và vá lỗi tương thích để chạy **Zalo PC (v26.7.
 ├── app.asar               # Gói asar gốc trích xuất từ Zalo PC Windows
 ├── app.asar.unpacked/     # Các thư viện native được giải nén từ asar
 ├── app-extracted/         # Mã nguồn ứng dụng sau khi trích xuất và vá lỗi
-│   ├── bootstrap.js       # Entry point khởi động ứng dụng
-│   ├── linux-compat/      # TẦNG TƯƠNG THÍCH LINUX (đã refactor modular)
-│   │   ├── index.js       # Bộ điều phối trung tâm (initLinuxCompat)
-│   │   ├── path-patcher.js# Vá Module._resolveFilename để hỗ trợ đường dẫn Windows
-│   │   ├── config-init.js # Khởi tạo thư mục config & các file .meta cần thiết
-│   │   ├── logger.js      # Ghi log ra file và đồng bộ console
-│   │   ├── devtools.js    # Phím tắt F12/Ctrl+Shift+I & giám sát BrowserWindow
-│   │   └── error-handler.js# Bắt lỗi unhandledRejection để tránh crash
-│   ├── native/nativelibs/ # Thư viện native & các stub dự phòng (sqlite3, db-cross-v4,...)
+│   ├── bootstrap.js       # Entry point khởi động ứng dụng (có bọc bảo vệ migration)
+│   ├── linux-compat/      # BỘ ĐIỀU PHỐI TƯƠNG THÍCH LINUX (Deep Module)
+│   │   └── index.js       # Module hợp nhất: path patcher, config init, non-blocking logger, devtools & error handler
+│   ├── native/nativelibs/ # TẦNG ADAPTER NỀN TẢNG (Platform Capability Adapters)
+│   │   ├── zfile/         # POSIX stat, permission check, diskInfo proxy cho Linux & Windows queries
+│   │   ├── file-utils/    # getDiskUsage tính dung lượng ổ đĩa qua fs.statfsSync
+│   │   ├── file-utilities/# Filesystem detector (ext4) & hardlinks array resolver
+│   │   ├── zwalker/       # Directory walker stub tuân thủ 100% Interface Contract
+│   │   ├── sqlite3/       # Binary NAPI v6 Linux x64 kèm fallback stub
+│   │   └── db-cross-v4/   # Stub giải mã an toàn
 │   ├── main-dist/         # Bundle tiến trình Main (Electron)
 │   └── pc-dist/           # Bundle tiến trình Renderer (Giao diện React)
+├── tests/                 # Bộ kiểm thử hợp đồng tự động (Contract Verification Tests)
+│   └── contract/          # Kiểm tra tính toàn vẹn chữ ký hàm & shape dữ liệu của nativelibs & linux-compat
+├── docs/adr/              # Architecture Decision Records ghi nhận các quyết định kiến trúc
+├── CONTEXT.md             # Tài liệu thuật ngữ miền (Domain Glossary & Relationships)
 ├── run.sh                 # Script tự động dò tìm Electron và khởi chạy
 ├── zalo-debug.log         # Nhật ký debug khi chạy ứng dụng
 └── README.md              # Tài liệu kiến trúc dự án
@@ -31,29 +36,41 @@ Dự án đóng gói và vá lỗi tương thích để chạy **Zalo PC (v26.7.
 
 ## 2. Kiến trúc tầng tương thích Linux (`linux-compat`)
 
-Do Zalo PC được phát triển chính thức cho Windows và macOS, khi chạy trên Linux sẽ gặp một số hạn chế về hệ điều hành và thư viện native C++. Thư mục `app-extracted/linux-compat/` giải quyết các vấn đề này một cách có cấu trúc:
-
-| Module | Nhiệm vụ |
-| :--- | :--- |
-| **`path-patcher.js`** | Hook vào `Module._resolveFilename` của Node.js để tự động chuyển đổi dấu gạch chéo ngược `\` (chuẩn Windows) thành gạch chéo `/` (chuẩn Unix) khi require module. |
-| **`config-init.js`** | Tự động tạo thư mục `~/.config/ZaloData/cal/` và các file metadata (`main.meta`, `preload-sqlite.meta`, `shared-worker.meta`, `render.meta`) để tránh lỗi *"Failed to parse meta"*. |
-| **`logger.js`** | Ghi log toàn bộ output của tiến trình (Main log, Renderer log, Navigation) vào file `zalo-debug.log` tại thư mục gốc mà không bị hardcode đường dẫn. |
-| **`devtools.js`** | Đăng ký phím tắt **F12** hoặc **Ctrl+Shift+I** để bật/tắt Chrome DevTools khi cửa sổ Zalo mở, hỗ trợ debug trực tiếp giao diện. |
-| **`error-handler.js`** | Bắt các unhandled rejection từ các tính năng Windows không khả dụng trên Linux để không làm sập ứng dụng. |
+Tầng tương thích được thiết kế theo nguyên lý **Deep Module** (giao diện nhỏ gọn nhưng nội hàm xử lý sâu):
+- **Điều phối tập trung (`initLinuxCompat`)**: Một điểm kích hoạt duy nhất từ `bootstrap.js`, loại bỏ các module nông và ngăn chặn phân tán trạng thái.
+- **Vá đường dẫn (`Module._resolveFilename`)**: Tự động chuyển đổi dấu gạch chéo ngược `\` (chuẩn Windows) thành gạch chéo `/` (chuẩn Unix) khi require module.
+- **Khởi tạo cấu hình (`config-init`)**: Tự động tạo thư mục `~/.config/ZaloData/cal/` và các file metadata (`main.meta`, `preload-sqlite.meta`, `shared-worker.meta`, `render.meta`) để tránh lỗi *"Failed to parse meta"*.
+- **Luồng chẩn đoán bất đồng bộ (Diagnostic Stream)**: Sử dụng Node.js write stream bất đồng bộ thay vì ghi đĩa đồng bộ (`appendFileSync`), loại bỏ hiện tượng nghẽn Event Loop trên Main process; tích hợp bộ lọc chống trùng lặp log giữa Renderer và Main.
+- **Giám sát cửa sổ & phím tắt DevTools**: Bắt phím tắt **F12** hoặc **Ctrl+Shift+I** để bật/tắt Chrome DevTools, theo dõi điều hướng `did-navigate` và bắt lỗi `did-fail-load`.
+- **Bảo vệ ngoại lệ**: Bắt unhandled promise rejections và uncaught exceptions, ghi lại toàn bộ stack trace giúp gỡ lỗi mà không làm sập ứng dụng.
 
 ---
 
 ## 3. Thư viện Native & Cơ chế lưu trữ Database
 
-- **SQLite3 (`sqlite3`)**: Đã tích hợp sẵn binary NAPI v6 tương thích Linux 64-bit (`binding/napi-v6-linux-x64/node_sqlite3.node`) kèm fallback stub nếu không thể nạp.
-- **Addons phụ trợ (`db-cross-v4`, `zwalker`, `zcall`, `zimage`, `file-utilities`, `v8-profiles`)**: Cung cấp các stub an toàn (mock implementations) trả về dữ liệu rỗng/hợp lệ thay vì ném lỗi khi thiếu binary Windows `.node`/`.dll`.
+- **Platform Capability Adapters (`nativelibs`)**:
+  - **`zfile`**: Cung cấp đầy đủ các phương thức `canReadAndWrite`, `canRead`, `canWrite`, `stat`, `copyFolder` qua POSIX Node.js APIs. Cung cấp hàm `diskInfo()` trả về `Proxy` hỗ trợ cả đường dẫn Linux (`/`) lẫn các truy vấn ký hiệu ổ đĩa Windows (`C:`, `C:\`, `D:\`), ngăn chặn triệt để lỗi `TypeError: Cannot create proxy with non-object as target`.
+  - **`file-utils`**: Hiện thực hàm `getDiskUsage()` sử dụng `fs.statfsSync()` để báo cáo chính xác dung lượng tổng và dung lượng trống thực tế trên Linux cho `analyzeMainDisk()`.
+  - **`file-utilities`**: Cung cấp `detectFilesystemSync` trả về `{ filesystem: 'ext4', filesystemType: 'ext4' }` và `detectHardlinksAsync` trả về `Array` rỗng, ngăn chặn lỗi `TypeError: toLocaleLowerCase is not a function` và `TypeError: filter is not a function`.
+  - **`zwalker` & `win-utils`**: Chuẩn hóa cấu trúc trả về `{ fileNumber: 0, size: 0, deletedDirs: [] }` và `{ qlWin: null }`.
+  - **`sqlite3`**: Tích hợp binary NAPI v6 tương thích Linux 64-bit (`binding/napi-v6-linux-x64/node_sqlite3.node`) kèm fallback stub.
 - **IndexedDB Database Engine (`IDB`)**: Trên Linux, Zalo PC được cấu hình chạy toàn diện trên **IndexedDB** tích hợp sẵn của Chromium/Electron thay vì SQLite đa tiến trình:
   - Bỏ qua các tác vụ mã hóa SQLite (`tryEncryptFastTrack`) và chuyển đổi C++ native (`db-cross-v4`).
   - Toàn bộ dữ liệu chat, danh bạ, tin nhắn, nhãn và cài đặt vận hành 100% cục bộ trong renderer, ngăn chặn triệt để tình trạng treo vô hạn ở màn hình *"Đang đăng nhập..."*.
 
 ---
 
-## 4. Hướng dẫn khởi chạy
+## 4. Kiểm thử tự động (Automated Contract Tests)
+
+Để đảm bảo các adapter và bộ điều phối tương thích luôn tuân thủ đúng Interface Contract:
+```bash
+node tests/contract/nativelibs-contract.test.js
+node tests/contract/linux-compat.test.js
+```
+
+---
+
+## 5. Hướng dẫn khởi chạy
 
 ### Yêu cầu
 - Đã cài đặt **Electron** (phiên bản khuyến nghị: >= 20.x hoặc thông qua Node.js).

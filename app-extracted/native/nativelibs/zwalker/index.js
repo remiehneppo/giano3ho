@@ -257,11 +257,11 @@ switch (platform) {
 if (!nativeBinding) {
   // Provide stub implementations when native binary is not available (e.g., Linux without prebuilt .node)
   nativeBinding = {
-    scanDirectory: () => ({ files: [], dirs: [] }),
+    scanDirectory: () => ({ files: [], dirs: [], fileNumber: 0, size: 0, trackingPath: '{}' }),
     updateReferenceMessageId: () => {},
-    deleteHomelessFiles: () => ({ deletedCount: 0 }),
-    statUnmarkedFiles: () => ({ files: [] }),
-    deleteEmptyFolders: () => ({ deletedCount: 0 })
+    deleteHomelessFiles: () => ({ deletedCount: 0, fileNumber: 0, size: 0 }),
+    statUnmarkedFiles: () => ({ files: [], fileNumber: 0, size: 0, trackingPath: '{}' }),
+    deleteEmptyFolders: () => ({ deletedCount: 0, deletedDirs: [] })
   }
 }
 

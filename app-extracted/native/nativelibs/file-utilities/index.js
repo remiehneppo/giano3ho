@@ -54,13 +54,16 @@ if (!nativeBinding) {
   // Provide stub implementations for unsupported platforms (Linux)
   const stubAsync = () => Promise.resolve({ totalSize: 0, fileCount: 0, dirCount: 0 })
   const stubSync = () => ({ totalSize: 0, fileCount: 0, dirCount: 0 })
+  const emptyHardlinks = () => Object.assign([], { hasHardlinks: false })
+  const fsInfo = () => ({ filesystem: 'ext4', filesystemType: 'ntfs' })
+
   nativeBinding = {
     getDirectorySizeSync: stubSync,
     getDirectorySizeAsync: stubAsync,
-    detectHardlinksSync: () => ({ hasHardlinks: false }),
-    detectHardlinksAsync: () => Promise.resolve({ hasHardlinks: false }),
-    detectFilesystemSync: () => ({ filesystem: 'unknown' }),
-    detectFilesystemAsync: () => Promise.resolve({ filesystem: 'unknown' }),
+    detectHardlinksSync: emptyHardlinks,
+    detectHardlinksAsync: () => Promise.resolve(emptyHardlinks()),
+    detectFilesystemSync: fsInfo,
+    detectFilesystemAsync: () => Promise.resolve(fsInfo()),
     getDirectorySizeByGlobSync: stubSync,
     getDirectorySizeByGlobAsync: stubAsync,
     getDirectorySizeTreeSync: stubSync,

@@ -22,19 +22,30 @@ find_electron() {
         return 0
     fi
 
-    # Check common local node_modules locations
+    # Check common system, package manager, and local development locations
     local search_paths=(
         "$SCRIPT_DIR/node_modules/.bin/electron"
         "$SCRIPT_DIR/../node_modules/.bin/electron"
-        "$HOME/AI/open-design/node_modules/.pnpm/electron@41.3.0/node_modules/electron/dist/electron"
+        "/usr/bin/electron"
+        "/usr/local/bin/electron"
+        "/snap/bin/electron"
+        "$HOME/.local/bin/electron"
+        "$HOME/.local/share/pnpm/electron"
+        "$HOME/.npm-global/bin/electron"
         "$HOME/AI/deepseek-harness/node_modules/.pnpm/node_modules/.bin/electron"
         "$HOME/AI/deepseek-harness/apps/desktop/node_modules/.bin/electron"
-        "$HOME/.local/bin/electron"
-        "/usr/local/bin/electron"
-        "/usr/bin/electron"
     )
 
     for bin in "${search_paths[@]}"; do
+        if [ -x "$bin" ]; then
+            echo "$bin"
+            return 0
+        fi
+    done
+
+    # Check development directories with glob expansion
+    for bin in "$HOME"/AI/*/node_modules/.bin/electron \
+               "$HOME"/AI/open-design/node_modules/.pnpm/electron*/node_modules/electron/dist/electron; do
         if [ -x "$bin" ]; then
             echo "$bin"
             return 0
@@ -72,6 +83,13 @@ echo " Electron:      $RESOLVED_ELECTRON"
 echo " Display:       $DISPLAY"
 echo "=================================================="
 
-# 3. Launch the application
+# 3. Prepare launch flags
+EXTRA_FLAGS=()
+# Enable --no-sandbox if running as root or when requested (default: 1 on Linux to avoid SUID sandbox errors)
+if [ "${ZALO_NO_SANDBOX:-1}" = "1" ] || [ "$(id -u)" = "0" ]; then
+    EXTRA_FLAGS+=("--no-sandbox")
+fi
+
+# 4. Launch the application
 cd "$APP_DIR"
-exec "$RESOLVED_ELECTRON" --no-sandbox . "$@"
+exec "$RESOLVED_ELECTRON" "${EXTRA_FLAGS[@]}" . "$@"
