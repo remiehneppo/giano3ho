@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zalo PC Linux // Cyberpunk Login Terminal</title>
+  <link href="cyberpunk-theme.css" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--cyber-void);
+      color: var(--text-primary);
+      font-family: var(--cyber-font-display);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    .titlebar {
+      height: 38px;
+      background: var(--cyber-void);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
+
+    .titlebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--cyber-cyan);
+      text-transform: uppercase;
+    }
+
+    .titlebar-meta {
+      display: flex;
+      gap: 12px;
+      font-family: var(--cyber-font-mono);
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .win-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .win-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      background: transparent;
+    }
+
+    .win-btn--close {
+      border-color: var(--cyber-magenta);
+    }
+
+    /* Terminal Center Stage */
+    .login-stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Animated background grid lines */
+    .login-stage::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.08) 0%, transparent 65%),
+        linear-gradient(to right, rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 36px 36px, 36px 36px;
+      pointer-events: none;
+    }
+
+    .terminal-card {
+      width: 440px;
+      background: rgba(12, 14, 24, 0.96);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.95), 0 0 20px rgba(0, 240, 255, 0.25);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(12px);
+      clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+    }
+
+    /* Top Laser Accent */
+    .terminal-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--cyber-magenta) 0%, var(--cyber-cyan) 50%, var(--cyber-green) 100%);
+      box-shadow: 0 0 14px var(--cyber-cyan);
+    }
+
+    .terminal-header {
+      padding: 24px 28px 16px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .zalo-logo-cyber {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 4px;
+      color: #fff;
+      text-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .zalo-logo-cyber span {
+      color: var(--cyber-cyan);
+    }
+
+    .terminal-subtitle {
+      font-family: var(--cyber-font-mono);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      letter-spacing: 1px;
+    }
+
+    /* Tabs */
+    .terminal-tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+      background: rgba(8, 10, 18, 0.6);
+      padding: 0 20px;
+      gap: 12px;
+    }
+
+    .t-tab {
+      padding: 10px 14px;
+      font-family: var(--cyber-font-mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .t-tab:hover {
+      color: var(--cyber-cyan);
+    }
+
+    .t-tab.active {
+      color: var(--cyber-cyan);
+    }
+
+    .t-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--cyber-cyan);
+      box-shadow: 0 0 8px var(--cyber-cyan);
+    }
+
+    /* Tab Content Area */
+    .terminal-body {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* QR Scan Frame */
+    .qr-hud-box {
+      width: 190px;
+      height: 190px;
+      background: #05060a;
+      border: 1px solid rgba(0, 240, 255, 0.5);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.25), inset 0 0 15px rgba(0, 240, 255, 0.1);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    /* Corner Bracket Accents */
+    .qr-hud-box::before, .qr-hud-box::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-color: var(--cyber-cyan);
+      border-style: solid;
+      pointer-events: none;
+    }
+    .qr-hud-box::before {
+      top: -3px;
+      left: -3px;
+      border-width: 2px 0 0 2px;
+    }
+    .qr-hud-box::after {
+      bottom: -3px;
+      right: -3px;
+      border-width: 0 2px 2px 0;
+    }
+
+    /* Laser Scanning Line Animation */
+    .qr-scan-beam {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyber-cyan), transparent);
+      box-shadow: 0 0 10px var(--cyber-cyan);
+      animation: scan-line 2.6s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+
+    @keyframes scan-line {
+      0% { top: 10%; opacity: 0.2; }
+      50% { opacity: 1; }
+      100% { top: 88%; opacity: 0.2; }
+    }
+
+    .qr-graphic {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      gap: 4px;
+      background: rgba(0, 240, 255, 0.05);
+      padding: 6px;
+    }
+
+    .qr-pixel {
+      background: rgba(0, 240, 255, 0.2);
+      border-radius: 1px;
+    }
+    .qr-pixel--solid {
+      background: var(--cyber-cyan);
+      box-shadow: 0 0 4px var(--cyber-cyan-glow);
+    }
+    .qr-pixel--corner {
+      background: var(--cyber-magenta);
+      box-shadow: 0 0 5px var(--cyber-magenta);
+    }
+
+    .scan-tip {
+      font-family: var(--cyber-font-mono);
+      font-size: 0.78rem;
+      text-align: center;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .scan-tip strong {
+      color: var(--cyber-cyan);
+    }
+
+    /* Action buttons */
+    .btn-jack-in {
+      width: 100%;
+      height: 44px;
+      background: var(--cyber-cyan);
+      color: var(--cyber-void);
+      font-family: var(--cyber-font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 0 16px var(--cyber-cyan-glow);
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+      transition: all 0.2s;
+    }
+
+    .btn-jack-in:hover {
+      background: #38f8ff;
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.85);
+      transform: translateY(-1px);
+    }
+
+    .terminal-footer {
+      padding: 14px 28px 20px;
+      border-top: 1px solid rgba(0, 240, 255, 0.12);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--cyber-font-mono);
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .terminal-footer a {
+      color: var(--cyber-cyan);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body class="PC cyberpunk scanlines">
+
+  <header class="titlebar">
+    <div class="titlebar-brand">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+      </svg>
+      <span>ZALO // CYBER_TERMINAL AUTH v26.7.10</span>
+    </div>
+
+    <div class="titlebar-meta">
+      <span>NET: WATSON_SECURE_LINK</span>
+      <span class="cyber-telemetry-badge cyber-telemetry-badge--success">GATEWAY: ONLINE</span>
+    </div>
+
+    <div class="win-controls">
+      <div class="win-btn"></div>
+      <div class="win-btn win-btn--close"></div>
+    </div>
+  </header>
+
+  <main class="login-stage">
+    <div class="terminal-card">
+      <div class="terminal-header">
+        <div class="zalo-logo-cyber">ZALO <span>//</span> LINUX</div>
+        <div class="terminal-subtitle">[SECURE NEURAL MESSAGING TERMINAL]</div>
+      </div>
+
+      <div class="terminal-tabs">
+        <div class="t-tab active">OPTICAL_QR_SCAN</div>
+        <div class="t-tab">CIPHER_CREDENTIALS</div>
+      </div>
+
+      <div class="terminal-body">
+        <!-- QR HUD Scan Frame -->
+        <div class="qr-hud-box">
+          <div class="qr-scan-beam"></div>
+          <div class="qr-graphic">
+            <div class="qr-pixel qr-pixel--corner"></div>
+            <div class="qr-pixel qr-pixel--corner"></div>
+            <div class="qr-pixel"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel qr-pixel--corner"></div>
+            <div class="qr-pixel qr-pixel--corner"></div>
+
+            <div class="qr-pixel qr-pixel--corner"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel qr-pixel--corner"></div>
+
+            <div class="qr-pixel"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel qr-pixel--corner"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel"></div>
+
+            <div class="qr-pixel qr-pixel--corner"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel qr-pixel--corner"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+
+            <div class="qr-pixel qr-pixel--corner"></div>
+            <div class="qr-pixel qr-pixel--corner"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel"></div>
+            <div class="qr-pixel qr-pixel--solid"></div>
+            <div class="qr-pixel qr-pixel--corner"></div>
+          </div>
+        </div>
+
+        <div class="scan-tip">
+          Scan with your mobile <strong>Zalo App</strong> or <strong>Cyber Optic Feed</strong> to initiate instant neural session handshake.
+        </div>
+
+        <button class="btn-jack-in">JACK IN // LOGIN</button>
+      </div>
+
+      <div class="terminal-footer">
+        <span>ENCRYPTION: 4096-BIT RSA</span>
+        <a href="#">SYSTEM RECOVERY</a>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>
