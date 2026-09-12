@@ -67,6 +67,46 @@ async function runTests() {
   // Clean up test log
   try { fs.unlinkSync(testLogPath); } catch (e) {}
 
+  // 5. Test Theme Manager Separation & Origin Validation
+  console.log('Testing Theme Manager & Origin Validation...');
+  const themeManager = _internals.themeManager;
+  assert(themeManager, 'themeManager must be exposed in _internals');
+  assert.strictEqual(typeof themeManager.isAllowedUrl, 'function', 'isAllowedUrl must be a function');
+  assert.strictEqual(typeof themeManager.handleHotkey, 'function', 'handleHotkey must be a function');
+
+  // Allowed vs Disallowed origins
+  assert.strictEqual(themeManager.isAllowedUrl('file:///home/user/pc-dist/index.html'), true, 'Local file URL must be allowed');
+  assert.strictEqual(themeManager.isAllowedUrl('https://chat.zalo.me/'), true, 'chat.zalo.me must be allowed');
+  assert.strictEqual(themeManager.isAllowedUrl('https://stc.zalo.me/app'), true, 'subdomain.zalo.me must be allowed');
+  assert.strictEqual(themeManager.isAllowedUrl('https://zaloapp.com/login'), true, 'zaloapp.com must be allowed');
+  assert.strictEqual(themeManager.isAllowedUrl('https://google.com'), false, 'Third-party origin must NOT be allowed');
+  assert.strictEqual(themeManager.isAllowedUrl('https://attacker-zalo.me.fake.com'), false, 'Spoofed domain must NOT be allowed');
+  assert.strictEqual(themeManager.isAllowedUrl(null), false, 'Null URL must return false');
+  assert.strictEqual(themeManager.isAllowedUrl(''), false, 'Empty URL must return false');
+
+  // Opt-in Theme Activation logic
+  const originalEnv = process.env.ZALO_THEME;
+  try {
+    delete process.env.ZALO_THEME;
+    assert.strictEqual(themeManager.isCyberpunkEnvActive(), false, 'Cyberpunk mode must NOT be active by default when unset');
+
+    process.env.ZALO_THEME = 'cyberpunk';
+    assert.strictEqual(themeManager.isCyberpunkEnvActive(), true, 'Cyberpunk mode must be active when explicitly set');
+
+    process.env.ZALO_THEME = 'dark';
+    assert.strictEqual(themeManager.isCyberpunkEnvActive(), false, 'Cyberpunk mode must NOT be active when set to dark');
+  } finally {
+    if (originalEnv !== undefined) {
+      process.env.ZALO_THEME = originalEnv;
+    } else {
+      delete process.env.ZALO_THEME;
+    }
+  }
+
+  // Hotkey dispatch
+  assert.strictEqual(themeManager.handleHotkey(null, { key: 'F10' }), true, 'F10 key should be handled');
+  assert.strictEqual(themeManager.handleHotkey(null, { key: 'F11' }), false, 'F11 key should not be handled');
+
   console.log('✅ ALL LINUX-COMPAT COORDINATOR TESTS PASSED SUCCESSFULLY!');
 }
 

@@ -4,8 +4,6 @@
  * Consolidated tokens, surface layers, glowing accents, and HUD components.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap');
-
 /* ==========================================================================
    1. CYBERPUNK PALETTE & SYSTEM VARIABLE OVERRIDES
    ========================================================================== */
@@ -16,9 +14,9 @@ body.PC.cyberpunk,
 body.dark.cyberpunk,
 :root.dark.cyberpunk,
 .cyberpunk {
-  /* Fonts */
-  --cyber-font-mono: 'Share Tech Mono', 'Consolas', 'Courier New', monospace;
-  --cyber-font-display: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Fonts - Robust offline system and developer font fallbacks (no external CSP violations) */
+  --cyber-font-mono: 'Share Tech Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  --cyber-font-display: 'Rajdhani', 'Segoe UI', 'Ubuntu', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
 
   /* Raw Cyberpunk Accents */
   --cyber-cyan: #00f0ff;

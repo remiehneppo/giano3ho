@@ -18,14 +18,24 @@
         const themeSetting = JSON.parse(themeSettingStr);
         const theme = themeSetting?.theme;
 
-        if (theme === "cyberpunk" || document.body.classList.contains('cyberpunk')) {
-          document.body.classList.add('cyberpunk', 'dark');
-          document.body.style.backgroundColor = bgColorCyberpunk;
+        const isCyber = theme === "cyberpunk" || (document.body && document.body.classList.contains('cyberpunk'));
+        const isDark = theme === "dark";
+
+        if (isCyber) {
+          document.documentElement.style.backgroundColor = bgColorCyberpunk;
+          if (document.body) {
+            document.body.classList.add('cyberpunk', 'dark');
+            document.body.style.backgroundColor = bgColorCyberpunk;
+          }
           const splash = document.getElementById('login-splash-screen');
           if (splash) splash.style.backgroundColor = bgColorCyberpunk;
-        } else if (theme === "dark") {
-          document.body.style.backgroundColor = bgColorDark;
-          document.getElementById('login-splash-screen').style.backgroundColor = bgColorDark;
+        } else if (isDark) {
+          document.documentElement.style.backgroundColor = bgColorDark;
+          if (document.body) {
+            document.body.style.backgroundColor = bgColorDark;
+          }
+          const splash = document.getElementById('login-splash-screen');
+          if (splash) splash.style.backgroundColor = bgColorDark;
         }
       } catch (e) {}
     }

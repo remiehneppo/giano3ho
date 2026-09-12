@@ -10,9 +10,13 @@ APP_DIR="$SCRIPT_DIR/app-extracted"
 
 # 1. Resolve Electron executable
 find_electron() {
-    # If user explicitly specified ELECTRON_BIN in environment, use it
+    # If user explicitly specified ELECTRON_BIN or ELECTRON_PATH in environment, use it
     if [ -n "$ELECTRON_BIN" ] && [ -x "$ELECTRON_BIN" ]; then
         echo "$ELECTRON_BIN"
+        return 0
+    fi
+    if [ -n "$ELECTRON_PATH" ] && [ -x "$ELECTRON_PATH" ]; then
+        echo "$ELECTRON_PATH"
         return 0
     fi
 
@@ -24,7 +28,6 @@ find_electron() {
 
     # Check common system, package manager, and local development locations
     local search_paths=(
-        "$HOME/AI/open-design/node_modules/.pnpm/electron@41.3.0/node_modules/electron/dist/electron"
         "$SCRIPT_DIR/node_modules/.bin/electron"
         "$SCRIPT_DIR/../node_modules/.bin/electron"
         "/usr/bin/electron"
@@ -33,8 +36,6 @@ find_electron() {
         "$HOME/.local/bin/electron"
         "$HOME/.local/share/pnpm/electron"
         "$HOME/.npm-global/bin/electron"
-        "$HOME/AI/deepseek-harness/node_modules/.pnpm/node_modules/.bin/electron"
-        "$HOME/AI/deepseek-harness/apps/desktop/node_modules/.bin/electron"
     )
 
     for bin in "${search_paths[@]}"; do
@@ -44,9 +45,10 @@ find_electron() {
         fi
     done
 
-    # Check development directories with glob expansion
-    for bin in "$HOME"/AI/*/node_modules/.bin/electron \
-               "$HOME"/AI/open-design/node_modules/.pnpm/electron*/node_modules/electron/dist/electron; do
+    # Check local development directories with glob expansion
+    for bin in "$SCRIPT_DIR"/../node_modules/.bin/electron \
+               "$HOME"/AI/*/node_modules/.bin/electron \
+               "$HOME"/.cache/electron/*/electron; do
         if [ -x "$bin" ]; then
             echo "$bin"
             return 0
