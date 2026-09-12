@@ -24,6 +24,7 @@ find_electron() {
 
     # Check common system, package manager, and local development locations
     local search_paths=(
+        "$HOME/AI/open-design/node_modules/.pnpm/electron@41.3.0/node_modules/electron/dist/electron"
         "$SCRIPT_DIR/node_modules/.bin/electron"
         "$SCRIPT_DIR/../node_modules/.bin/electron"
         "/usr/bin/electron"
