@@ -33,6 +33,12 @@ async function runTests() {
   _internals.initLinuxConfig();
   const calDir = path.join(os.homedir(), '.config', 'ZaloData', 'cal');
   assert(fs.existsSync(calDir), 'cal directory must exist');
+
+  // Verify login.meta and all essential process metas are included
+  assert(_internals.REQUIRED_META_FILES.includes('login.meta'), 'login.meta must be in REQUIRED_META_FILES');
+  assert(_internals.REQUIRED_META_FILES.includes('main.meta'), 'main.meta must be in REQUIRED_META_FILES');
+  assert(_internals.REQUIRED_META_FILES.includes('render.meta'), 'render.meta must be in REQUIRED_META_FILES');
+
   for (const metaFile of _internals.REQUIRED_META_FILES) {
     const metaPath = path.join(calDir, metaFile);
     assert(fs.existsSync(metaPath), `Meta file ${metaFile} must exist`);
@@ -40,6 +46,13 @@ async function runTests() {
     assert(content.version, 'Meta file must have version property');
     assert.strictEqual(content.initialized, true, 'Meta file must have initialized: true');
   }
+
+  // Test self-healing of empty/corrupted meta files
+  const testCorruptPath = path.join(calDir, 'login.meta');
+  fs.writeFileSync(testCorruptPath, '', 'utf8'); // 0-byte corrupt
+  _internals.initLinuxConfig();
+  const repairedContent = JSON.parse(fs.readFileSync(testCorruptPath, 'utf8'));
+  assert.strictEqual(repairedContent.initialized, true, 'Empty meta file must be self-healed');
 
   // 4. Test Diagnostic Stream & No Double Logging
   console.log('Testing Diagnostic Stream & De-duplication...');
@@ -83,6 +96,12 @@ async function runTests() {
   assert.strictEqual(themeManager.isAllowedUrl('https://attacker-zalo.me.fake.com'), false, 'Spoofed domain must NOT be allowed');
   assert.strictEqual(themeManager.isAllowedUrl(null), false, 'Null URL must return false');
   assert.strictEqual(themeManager.isAllowedUrl(''), false, 'Empty URL must return false');
+
+  // UI window filtering (no background workers)
+  assert.strictEqual(themeManager.isUIWindow('file:///path/to/pc-dist/index.html'), true, 'index.html is UI window');
+  assert.strictEqual(themeManager.isUIWindow('file:///path/to/pc-dist/login.html'), true, 'login.html is UI window');
+  assert.strictEqual(themeManager.isUIWindow('file:///path/to/pc-dist/sqlite.html'), false, 'sqlite.html is worker, NOT UI window');
+  assert.strictEqual(themeManager.isUIWindow('file:///path/to/pc-dist/shared-worker.html'), false, 'shared-worker.html is worker, NOT UI window');
 
   // Opt-in Theme Activation logic
   const originalEnv = process.env.ZALO_THEME;

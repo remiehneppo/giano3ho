@@ -17,9 +17,12 @@ const themeManager = require('./theme-manager');
 const APP_VERSION = '26.7.10';
 const REQUIRED_META_FILES = [
   'main.meta',
+  'login.meta',
   'preload-sqlite.meta',
   'shared-worker.meta',
   'render.meta',
+  'znotification.meta',
+  'u-process-media.meta',
 ];
 
 let isInitialized = false;
@@ -60,7 +63,24 @@ function initLinuxConfig() {
 
   for (const file of REQUIRED_META_FILES) {
     const metaPath = path.join(calDir, file);
+    let shouldWrite = false;
+
     if (!fs.existsSync(metaPath)) {
+      shouldWrite = true;
+    } else {
+      try {
+        const content = fs.readFileSync(metaPath, 'utf8').trim();
+        if (!content) {
+          shouldWrite = true;
+        } else {
+          JSON.parse(content);
+        }
+      } catch (err) {
+        shouldWrite = true;
+      }
+    }
+
+    if (shouldWrite) {
       try {
         fs.writeFileSync(metaPath, defaultMetaContent, 'utf8');
       } catch (err) {}
@@ -207,10 +227,11 @@ function installWindowHooks() {
   }
 
   app.on('browser-window-created', (event, win) => {
-    if (!win || !win.webContents) return;
+    if (!win || win.isDestroyed() || !win.webContents || win.webContents.isDestroyed()) return;
 
     // Shortcuts: DevTools (F12, Ctrl+Shift+I) & Theme triggers
     win.webContents.on('before-input-event', (inputEvent, input) => {
+      if (win.isDestroyed() || win.webContents.isDestroyed()) return;
       const isF12 = input.key === 'F12';
       const isCtrlShiftI = input.control && input.shift && input.key && input.key.toLowerCase() === 'i';
 
@@ -227,6 +248,7 @@ function installWindowHooks() {
 
     // Directly stream renderer console messages to diagnostic log (no double logging)
     win.webContents.on('console-message', (consoleEvent, level, message) => {
+      if (win.isDestroyed() || win.webContents.isDestroyed()) return;
       let msg = message;
       if (consoleEvent && consoleEvent.message !== undefined) {
         msg = consoleEvent.message;
@@ -241,6 +263,7 @@ function installWindowHooks() {
 
     // Window navigation tracking
     win.webContents.on('did-navigate', (navEvent, url) => {
+      if (win.isDestroyed() || win.webContents.isDestroyed()) return;
       writeDiagnostic('Navigate', `did-navigate: ${url}`);
       if (originalConsole) {
         originalConsole.log(`[Window Navigate] did-navigate to: ${url}`);
@@ -251,6 +274,7 @@ function installWindowHooks() {
 
     // Window navigation load failures
     win.webContents.on('did-fail-load', (failEvent, errorCode, errorDescription, validatedURL) => {
+      if (win.isDestroyed() || win.webContents.isDestroyed()) return;
       const errorMsg = `did-fail-load: code ${errorCode} (${errorDescription}) URL: ${validatedURL}`;
       writeDiagnostic('Navigate ERROR', errorMsg);
       if (originalConsole) {

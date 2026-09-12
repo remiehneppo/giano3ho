@@ -41,6 +41,22 @@ function isAllowedUrl(url) {
 }
 
 /**
+ * Ensures script injection only targets user-facing UI windows.
+ * Avoids touching background workers (sqlite.html, shared-worker.html, znotification.html).
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isUIWindow(url) {
+  if (!url || typeof url !== 'string') return false;
+  return (
+    url.includes('index.html') ||
+    url.includes('login.html') ||
+    url.includes('chat.zalo.me') ||
+    url.includes('zalo.me')
+  );
+}
+
+/**
  * Checks if Cyberpunk mode is forced via environment variable.
  * Opt-in only: returns true strictly when ZALO_THEME === 'cyberpunk'.
  * @returns {boolean}
@@ -55,10 +71,17 @@ function isCyberpunkEnvActive() {
  * @param {boolean} enable
  */
 function setCyberpunkTheme(win, enable) {
-  if (!win || !win.webContents) return;
+  if (!win || win.isDestroyed()) return;
+  const contents = win.webContents;
+  if (!contents || contents.isDestroyed() || contents.isCrashed()) return;
 
-  const url = win.webContents.getURL();
-  if (!isAllowedUrl(url)) return;
+  let url = '';
+  try {
+    url = contents.getURL();
+  } catch (e) {
+    return;
+  }
+  if (!isAllowedUrl(url) || !isUIWindow(url)) return;
 
   const code = enable
     ? `
@@ -84,7 +107,11 @@ function setCyberpunkTheme(win, enable) {
       })();
     `;
 
-  win.webContents.executeJavaScript(code).catch(() => {});
+  try {
+    if (!win.isDestroyed() && !contents.isDestroyed()) {
+      contents.executeJavaScript(code).catch(() => {});
+    }
+  } catch (e) {}
 }
 
 /**
@@ -92,10 +119,17 @@ function setCyberpunkTheme(win, enable) {
  * @param {import('electron').BrowserWindow} win
  */
 function toggleCyberpunkTheme(win) {
-  if (!win || !win.webContents) return;
+  if (!win || win.isDestroyed()) return;
+  const contents = win.webContents;
+  if (!contents || contents.isDestroyed() || contents.isCrashed()) return;
 
-  const url = win.webContents.getURL();
-  if (!isAllowedUrl(url)) return;
+  let url = '';
+  try {
+    url = contents.getURL();
+  } catch (e) {
+    return;
+  }
+  if (!isAllowedUrl(url) || !isUIWindow(url)) return;
 
   const toggleScript = `
     (function() {
@@ -120,7 +154,11 @@ function toggleCyberpunkTheme(win) {
     })();
   `;
 
-  win.webContents.executeJavaScript(toggleScript).catch(() => {});
+  try {
+    if (!win.isDestroyed() && !contents.isDestroyed()) {
+      contents.executeJavaScript(toggleScript).catch(() => {});
+    }
+  } catch (e) {}
 }
 
 /**
@@ -130,66 +168,65 @@ function toggleCyberpunkTheme(win) {
  * @returns {boolean} true if hotkey was handled
  */
 function handleHotkey(win, input) {
-  if (!input) return false;
+  if (!input || input.key !== 'F10') return false;
 
-  // F10 toggles Cyberpunk UI Mode
-  if (input.key === 'F10') {
+  if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
     toggleCyberpunkTheme(win);
-    return true;
   }
 
-  return false;
+  return true;
 }
 
 /**
  * Attaches theme lifecycle hooks to a window's webContents.
+ * Defensively verifies window/frame lifecycle to avoid destroyed frame errors.
  * @param {import('electron').BrowserWindow} win
  */
 function attachWindowHooks(win) {
-  if (!win || !win.webContents) return;
+  if (!win || win.isDestroyed()) return;
+  const contents = win.webContents;
+  if (!contents || contents.isDestroyed()) return;
 
-  win.webContents.on('dom-ready', () => {
-    const url = win.webContents.getURL();
-    if (!isAllowedUrl(url)) return;
+  contents.on('dom-ready', () => {
+    if (win.isDestroyed() || contents.isDestroyed() || contents.isCrashed()) return;
 
+    let url = '';
+    try {
+      url = contents.getURL();
+    } catch (e) {
+      return;
+    }
+
+    // Only apply to allowed UI windows (never worker windows like sqlite.html or shared-worker.html)
+    if (!isAllowedUrl(url) || !isUIWindow(url)) return;
+
+    // If env var is not explicitly set, renderer inline script (index.html / login.html) handles user preference
     const forceCyber = isCyberpunkEnvActive();
+    if (!forceCyber) return;
 
-    // Respect user's saved preference or env var; do NOT force on undefined env
     const checkAndApplyScript = `
       (function() {
-        const forceCyber = ${forceCyber ? 'true' : 'false'};
-        let isCyber = forceCyber;
-
-        if (!forceCyber) {
-          try {
-            const zaThemeStr = localStorage.getItem('za_theme');
-            if (zaThemeStr) {
-              const parsed = JSON.parse(zaThemeStr);
-              if (parsed && parsed.theme === 'cyberpunk') {
-                isCyber = true;
-              }
-            }
-          } catch(e) {}
+        document.documentElement.style.background = '${CYBERPUNK_BG}';
+        if (document.body) {
+          document.body.classList.add('cyberpunk', 'dark', 'scanlines');
+          document.body.style.background = '${CYBERPUNK_BG}';
         }
-
-        if (isCyber) {
-          document.documentElement.style.background = '${CYBERPUNK_BG}';
-          if (document.body) {
-            document.body.classList.add('cyberpunk', 'dark', 'scanlines');
-            document.body.style.background = '${CYBERPUNK_BG}';
-          }
-          console.log('[Zalo Linux] Cyberpunk UI Mode active');
-        }
+        console.log('[Zalo Linux] Cyberpunk UI Mode active (via env)');
       })();
     `;
 
-    win.webContents.executeJavaScript(checkAndApplyScript).catch(() => {});
+    try {
+      if (!win.isDestroyed() && !contents.isDestroyed()) {
+        contents.executeJavaScript(checkAndApplyScript).catch(() => {});
+      }
+    } catch (e) {}
   });
 }
 
 module.exports = {
   CYBERPUNK_BG,
   isAllowedUrl,
+  isUIWindow,
   isCyberpunkEnvActive,
   setCyberpunkTheme,
   toggleCyberpunkTheme,

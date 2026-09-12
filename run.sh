@@ -86,7 +86,9 @@ echo " Electron:      $RESOLVED_ELECTRON"
 echo " Display:       $DISPLAY"
 echo "=================================================="
 
-# 3. Prepare launch flags
+# 3. Prepare launch environment and flags
+export ELECTRON_DISABLE_SECURITY_WARNINGS=true
+
 EXTRA_FLAGS=()
 # Enable --no-sandbox if running as root or when requested (default: 1 on Linux to avoid SUID sandbox errors)
 if [ "${ZALO_NO_SANDBOX:-1}" = "1" ] || [ "$(id -u)" = "0" ]; then
