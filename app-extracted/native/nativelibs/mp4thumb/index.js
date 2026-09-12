@@ -4,33 +4,31 @@ let CachedModule = {};
 function getLib() {
     let thumbModule = null;
     try {
-        if(process.platform === 'win32') {
+        if (process.platform === 'win32') {
             thumbModule = require(`./win32/${process.arch}/mp4thumb.node`);
-        }
-        else {
-            if(process.arch === 'arm64'){
-                // thumbModule = require('./darwin-arm64/mp4thumb.node');
+        } else if (process.platform === 'darwin') {
+            if (process.arch === 'arm64') {
                 thumbModule = require('./darwin-arm64/mp4thumb.node');
-            }
-            else {
+            } else {
                 thumbModule = require('./darwin-x64/mp4thumb.node');
             }
         }
+    } catch (e) {
+        thumbModule = null;
     }
-    catch(e) {
-        console.error(`Failed to load mp4thumb module: ${e.message}`);
-        // throw new Error(`Module mp4thumb cannot be loaded for ${process.platform}-${process.arch}`);
+
+    if (!thumbModule) {
         thumbModule = new class {
             MP4Thumb() {
                 return {
                     generateThumbnailAsync: () => {
-                        throw {error: 'LIB_ERR', message: 'Failed to load mp4thumb module'};
+                        throw {error: 'LIB_ERR', message: 'mp4thumb native module not available on this platform'};
                     },
                     generateThumbnail: () => {
-                        throw {error: 'LIB_ERR', message: 'Failed to load mp4thumb module'};
+                        throw {error: 'LIB_ERR', message: 'mp4thumb native module not available on this platform'};
                     },
                     cancel: () => {
-                        throw {error: 'LIB_ERR', message: 'Failed to load mp4thumb module'};
+                        throw {error: 'LIB_ERR', message: 'mp4thumb native module not available on this platform'};
                     }
                 }
             }
