@@ -103,17 +103,32 @@ async function runTests() {
   assert.strictEqual(themeManager.isUIWindow('file:///path/to/pc-dist/sqlite.html'), false, 'sqlite.html is worker, NOT UI window');
   assert.strictEqual(themeManager.isUIWindow('file:///path/to/pc-dist/shared-worker.html'), false, 'shared-worker.html is worker, NOT UI window');
 
-  // Opt-in Theme Activation logic
+  // Cyberpunk is the DEFAULT theme; ZALO_THEME only opts out
   const originalEnv = process.env.ZALO_THEME;
   try {
+    assert.strictEqual(typeof themeManager.isCyberpunkEnabled, 'function', 'isCyberpunkEnabled must be a function');
+    assert.strictEqual(themeManager.THEME_PREF_KEY, 'zalo_linux_theme', 'Theme preference key must stay stable');
+
     delete process.env.ZALO_THEME;
-    assert.strictEqual(themeManager.isCyberpunkEnvActive(), false, 'Cyberpunk mode must NOT be active by default when unset');
+    assert.strictEqual(themeManager.isCyberpunkEnabled(), true, 'Cyberpunk mode must be ON by default when ZALO_THEME is unset');
+
+    process.env.ZALO_THEME = '';
+    assert.strictEqual(themeManager.isCyberpunkEnabled(), true, 'Empty ZALO_THEME must keep Cyberpunk ON');
 
     process.env.ZALO_THEME = 'cyberpunk';
-    assert.strictEqual(themeManager.isCyberpunkEnvActive(), true, 'Cyberpunk mode must be active when explicitly set');
+    assert.strictEqual(themeManager.isCyberpunkEnabled(), true, 'Cyberpunk mode must stay ON when explicitly selected');
 
-    process.env.ZALO_THEME = 'dark';
-    assert.strictEqual(themeManager.isCyberpunkEnvActive(), false, 'Cyberpunk mode must NOT be active when set to dark');
+    for (const optOut of ['dark', 'light', 'default', 'off', '0', 'false', 'zalo', 'classic']) {
+      process.env.ZALO_THEME = optOut;
+      assert.strictEqual(themeManager.isCyberpunkEnabled(), false, `Cyberpunk mode must be OFF when ZALO_THEME=${optOut}`);
+    }
+
+    process.env.ZALO_THEME = 'DEFAULT';
+    assert.strictEqual(themeManager.isCyberpunkEnabled(), false, 'Opt-out values must be case-insensitive');
+
+    // Legacy alias keeps working for external callers
+    delete process.env.ZALO_THEME;
+    assert.strictEqual(themeManager.isCyberpunkEnvActive(), true, 'isCyberpunkEnvActive must mirror isCyberpunkEnabled');
   } finally {
     if (originalEnv !== undefined) {
       process.env.ZALO_THEME = originalEnv;

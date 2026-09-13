@@ -9,6 +9,30 @@
 const CYBERPUNK_BG = '#08090F';
 
 /**
+ * Renderer-side preference key owned by this compatibility layer.
+ * Kept separate from Zalo's own `za_theme` so the default Cyberpunk theme cannot
+ * be clobbered by the application writing its stock theme setting on startup.
+ */
+const THEME_PREF_KEY = 'zalo_linux_theme';
+
+/**
+ * `ZALO_THEME` values that explicitly opt out of the default Cyberpunk theme.
+ * Any other value (including an unset variable) keeps Cyberpunk enabled.
+ */
+const CYBERPUNK_DISABLED_VALUES = new Set([
+  '0',
+  'false',
+  'off',
+  'no',
+  'none',
+  'default',
+  'zalo',
+  'classic',
+  'light',
+  'dark',
+]);
+
+/**
  * Validates whether the given URL is safe and intended for theme injection.
  * Prevents script injection on external third-party pages (OAuth, webviews, external links).
  * @param {string} url
@@ -57,12 +81,28 @@ function isUIWindow(url) {
 }
 
 /**
- * Checks if Cyberpunk mode is forced via environment variable.
- * Opt-in only: returns true strictly when ZALO_THEME === 'cyberpunk'.
+ * Cyberpunk is the default UI theme on Linux.
+ * Opt out by setting `ZALO_THEME` to one of CYBERPUNK_DISABLED_VALUES
+ * (e.g. `ZALO_THEME=default`), or toggle at runtime with F10.
+ * @returns {boolean}
+ */
+function isCyberpunkEnabled() {
+  const raw = process.env.ZALO_THEME;
+  if (raw === undefined || raw === null) return true;
+
+  const normalized = String(raw).trim().toLowerCase();
+  if (normalized === '') return true;
+
+  return !CYBERPUNK_DISABLED_VALUES.has(normalized);
+}
+
+/**
+ * Backwards-compatible alias of {@link isCyberpunkEnabled}.
+ * @deprecated use isCyberpunkEnabled instead.
  * @returns {boolean}
  */
 function isCyberpunkEnvActive() {
-  return process.env.ZALO_THEME === 'cyberpunk';
+  return isCyberpunkEnabled();
 }
 
 /**
@@ -92,6 +132,7 @@ function setCyberpunkTheme(win, enable) {
           document.body.style.background = '${CYBERPUNK_BG}';
         }
         localStorage.setItem('za_theme', JSON.stringify({ theme: 'cyberpunk' }));
+        localStorage.setItem('${THEME_PREF_KEY}', 'cyberpunk');
         console.log('[Zalo Linux] Cyberpunk UI Mode: ENABLED');
       })();
     `
@@ -103,6 +144,7 @@ function setCyberpunkTheme(win, enable) {
           document.body.style.background = '';
         }
         localStorage.setItem('za_theme', JSON.stringify({ theme: 'dark' }));
+        localStorage.setItem('${THEME_PREF_KEY}', 'stock');
         console.log('[Zalo Linux] Cyberpunk UI Mode: DISABLED');
       })();
     `;
@@ -141,6 +183,7 @@ function toggleCyberpunkTheme(win) {
           document.body.style.background = '${CYBERPUNK_BG}';
         }
         localStorage.setItem('za_theme', JSON.stringify({ theme: 'cyberpunk' }));
+        localStorage.setItem('${THEME_PREF_KEY}', 'cyberpunk');
         console.log('[Zalo Linux] Cyberpunk UI Mode: ENABLED');
       } else {
         document.documentElement.style.background = '';
@@ -149,6 +192,7 @@ function toggleCyberpunkTheme(win) {
           document.body.style.background = '';
         }
         localStorage.setItem('za_theme', JSON.stringify({ theme: 'dark' }));
+        localStorage.setItem('${THEME_PREF_KEY}', 'stock');
         console.log('[Zalo Linux] Cyberpunk UI Mode: DISABLED');
       }
     })();
@@ -200,24 +244,48 @@ function attachWindowHooks(win) {
     // Only apply to allowed UI windows (never worker windows like sqlite.html or shared-worker.html)
     if (!isAllowedUrl(url) || !isUIWindow(url)) return;
 
-    // If env var is not explicitly set, renderer inline script (index.html / login.html) handles user preference
-    const forceCyber = isCyberpunkEnvActive();
-    if (!forceCyber) return;
+    // Cyberpunk is the default theme. The rendered preference key keeps an
+    // explicit in-app toggle (F10) and the ZALO_THEME opt-out authoritative,
+    // without depending on Zalo's own `za_theme` value.
+    const cyberpunkEnabled = isCyberpunkEnabled();
 
-    const checkAndApplyScript = `
+    const themeScript = cyberpunkEnabled
+      ? `
       (function() {
+        var preference = null;
+        try {
+          preference = localStorage.getItem('${THEME_PREF_KEY}');
+        } catch (e) {}
+        if (preference === 'stock') {
+          console.log('[Zalo Linux] Cyberpunk UI Mode: skipped (user preference: stock)');
+          return;
+        }
         document.documentElement.style.background = '${CYBERPUNK_BG}';
         if (document.body) {
           document.body.classList.add('cyberpunk', 'dark', 'scanlines');
           document.body.style.background = '${CYBERPUNK_BG}';
         }
-        console.log('[Zalo Linux] Cyberpunk UI Mode active (via env)');
+        localStorage.setItem('za_theme', JSON.stringify({ theme: 'cyberpunk' }));
+        localStorage.setItem('${THEME_PREF_KEY}', 'cyberpunk');
+        console.log('[Zalo Linux] Cyberpunk UI Mode: ENABLED (default)');
+      })();
+    `
+      : `
+      (function() {
+        document.documentElement.style.background = '';
+        if (document.body) {
+          document.body.classList.remove('cyberpunk', 'scanlines');
+          document.body.style.background = '';
+        }
+        localStorage.setItem('za_theme', JSON.stringify({ theme: 'dark' }));
+        localStorage.setItem('${THEME_PREF_KEY}', 'stock');
+        console.log('[Zalo Linux] Cyberpunk UI Mode: DISABLED (ZALO_THEME opt-out)');
       })();
     `;
 
     try {
       if (!win.isDestroyed() && !contents.isDestroyed()) {
-        contents.executeJavaScript(checkAndApplyScript).catch(() => {});
+        contents.executeJavaScript(themeScript).catch(() => {});
       }
     } catch (e) {}
   });
@@ -225,8 +293,11 @@ function attachWindowHooks(win) {
 
 module.exports = {
   CYBERPUNK_BG,
+  THEME_PREF_KEY,
+  CYBERPUNK_DISABLED_VALUES,
   isAllowedUrl,
   isUIWindow,
+  isCyberpunkEnabled,
   isCyberpunkEnvActive,
   setCyberpunkTheme,
   toggleCyberpunkTheme,

@@ -42,6 +42,7 @@ Tầng tương thích được thiết kế theo nguyên lý **Deep Module** (gi
 - **Khởi tạo cấu hình (`config-init`)**: Tự động tạo thư mục `~/.config/ZaloData/cal/` và các file metadata (`main.meta`, `preload-sqlite.meta`, `shared-worker.meta`, `render.meta`) để tránh lỗi *"Failed to parse meta"*.
 - **Luồng chẩn đoán bất đồng bộ (Diagnostic Stream)**: Sử dụng Node.js write stream bất đồng bộ thay vì ghi đĩa đồng bộ (`appendFileSync`), loại bỏ hiện tượng nghẽn Event Loop trên Main process; tích hợp bộ lọc chống trùng lặp log giữa Renderer và Main.
 - **Giám sát cửa sổ & phím tắt DevTools**: Bắt phím tắt **F12** hoặc **Ctrl+Shift+I** để bật/tắt Chrome DevTools, theo dõi điều hướng `did-navigate` và bắt lỗi `did-fail-load`.
+- **Quản lý giao diện (`theme-manager`)**: Tách riêng khỏi bộ điều phối; kiểm tra origin trước khi inject, chỉ tác động lên cửa sổ UI (bỏ qua worker). Theme **Cyberpunk là mặc định**, có thể tắt bằng `ZALO_THEME` hoặc phím **F10**, lựa chọn của người dùng được lưu bền vững.
 - **Bảo vệ ngoại lệ**: Bắt unhandled promise rejections và uncaught exceptions, ghi lại toàn bộ stack trace giúp gỡ lỗi mà không làm sập ứng dụng.
 
 ---
@@ -101,3 +102,9 @@ Chạy script:
   ```bash
   ZALO_DEBUG_LOG=/tmp/zalo.log ./run.sh
   ```
+- Tắt theme Cyberpunk (mặc định đang BẬT) để quay về giao diện gốc của Zalo:
+  ```bash
+  ZALO_THEME=default ./run.sh
+  ```
+  Các giá trị opt-out hợp lệ: `default`, `zalo`, `classic`, `light`, `dark`, `off`, `none`, `no`, `0`, `false`.
+  Bấm **F10** để bật/tắt theme ngay trong lúc chạy; lựa chọn này được lưu lại (`zalo_linux_theme` trong localStorage) và không bị ghi đè ở lần khởi động sau.
