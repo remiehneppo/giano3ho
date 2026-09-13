@@ -234,6 +234,21 @@ function attachWindowHooks(win) {
   contents.on('dom-ready', () => {
     if (win.isDestroyed() || contents.isDestroyed() || contents.isCrashed()) return;
 
+    // DEBUG: capture unhandled promise rejections in renderer to diagnose login loop
+    if (!win.isDestroyed() && !contents.isDestroyed()) {
+      contents.executeJavaScript(`
+        if (!window.__debugRejectionInstalled) {
+          window.__debugRejectionInstalled = true;
+          window.addEventListener('unhandledrejection', function(e) {
+            var val = e.reason;
+            var msg = '';
+            try { msg = JSON.stringify(val); } catch(ex) { try { msg = String(val); } catch(ex2) { msg = 'unknown'; } }
+            console.error('[DEBUG-RENDERER] Unhandled rejection: ' + msg + ' stack=' + (val && val.stack ? val.stack : 'none'));
+          });
+        }
+      `).catch(function(){});
+    }
+
     let url = '';
     try {
       url = contents.getURL();
