@@ -58,6 +58,11 @@ Tầng tương thích được thiết kế theo nguyên lý **Deep Module** (gi
   - Bỏ qua các tác vụ mã hóa SQLite (`tryEncryptFastTrack`) và chuyển đổi C++ native (`db-cross-v4`).
   - Toàn bộ dữ liệu chat, danh bạ, tin nhắn, nhãn và cài đặt vận hành 100% cục bộ trong renderer, ngăn chặn triệt để tình trạng treo vô hạn ở màn hình *"Đang đăng nhập..."*.
 
+### Cửa sổ quét mã QR đăng nhập (Login QR Polling)
+- Luồng đăng nhập QR long-poll endpoint `polling/qr/waiting`: server giữ kết nối ~20s rồi trả `HTTP 408` (đây là tín hiệu *"chưa quét"*, không phải lỗi) và mã QR vẫn còn hiệu lực trên server thêm vài phút.
+- Bản gốc dùng thẳng `qr_retry` do server trả về (3 lần ≈ 60 giây) nên client **ngừng poll** khi mã QR vẫn còn hạn. Người dùng quét chậm hơn 60 giây sẽ thấy *"Mã QR đã hết hạn"*, bấm tải lại sẽ sinh mã mới và vô hiệu hoá mã vừa quét → lặp vô hạn ở bước quét QR.
+- Bản vá (`pc-dist/lazy/login-startup.*.js`, hàm `Dr`) áp sàn số lần poll tối thiểu `i = Math.max(i || 0, 10)` (~200 giây) để cửa sổ quét khớp với thời gian sống thực tế của mã QR.
+
 ---
 
 ## 4. Kiểm thử tự động (Automated Contract Tests)
@@ -66,6 +71,7 @@ Tầng tương thích được thiết kế theo nguyên lý **Deep Module** (gi
 ```bash
 node tests/contract/nativelibs-contract.test.js
 node tests/contract/linux-compat.test.js
+node tests/contract/login-qr-polling.test.js
 ```
 
 ---
