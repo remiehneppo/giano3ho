@@ -108,3 +108,21 @@ Chạy script:
   ```
   Các giá trị opt-out hợp lệ: `default`, `zalo`, `classic`, `light`, `dark`, `off`, `none`, `no`, `0`, `false`.
   Bấm **F10** để bật/tắt theme ngay trong lúc chạy; lựa chọn này được lưu lại (`zalo_linux_theme` trong localStorage) và không bị ghi đè ở lần khởi động sau.
+
+---
+
+## 6. Quy ước branch (Branching)
+
+| Branch | Vai trò |
+| --- | --- |
+| `feature/cyberpunk-theme-ui` | **Nhánh phát triển chính.** Mọi bản vá tương thích Linux (login QR, theme, nativelibs, compat layer...) được commit và push tại đây. |
+| `main` | **Chỉ dùng để phát hành (release-only).** Không push commit tính năng trực tiếp lên `main`; chỉ cập nhật khi đóng bản phát hành từ nhánh phát triển. |
+
+Khi pull code về máy khác để chạy thử, luôn checkout nhánh phát triển:
+
+```bash
+git fetch origin
+git checkout feature/cyberpunk-theme-ui
+git pull
+./run.sh
+```
