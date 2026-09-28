@@ -13,3 +13,4 @@ zalo-debug.log
 
 # Node
 node_modules/
+*.bdic

@@ -94,6 +94,11 @@ EXTRA_FLAGS=()
 if [ "${ZALO_NO_SANDBOX:-1}" = "1" ] || [ "$(id -u)" = "0" ]; then
     EXTRA_FLAGS+=("--no-sandbox")
 fi
+# Disable /dev/shm usage to avoid shared memory allocation failures on Linux/containers
+EXTRA_FLAGS+=("--disable-dev-shm-usage")
+if [ -n "$ZALO_USER_DATA_DIR" ]; then
+    EXTRA_FLAGS+=("--user-data-dir=$ZALO_USER_DATA_DIR")
+fi
 
 # 4. Launch the application
 cd "$APP_DIR"

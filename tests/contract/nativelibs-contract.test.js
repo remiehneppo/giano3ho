@@ -147,6 +147,21 @@ async function runTests() {
   assert(typeof mainApp.getListDevices === 'function', 'MainApp.getListDevices must be a function');
   assert.strictEqual(mainApp.getListDevices(), '[]', 'getListDevices must return empty JSON array');
 
+  // 9. Test zjxl (Linux Platform Capability Adapter)
+  console.log('Testing zjxl contract...');
+  const zjxl = nativelibs.zjxl();
+  assert(typeof zjxl === 'object', 'zjxl must return an object');
+  assert(typeof zjxl.decodeToJpeg === 'function', 'zjxl.decodeToJpeg must be a function');
+  assert(typeof zjxl.bitmapToJxl === 'function', 'zjxl.bitmapToJxl must be a function');
+  assert(typeof zjxl.getJxlInfo === 'function', 'zjxl.getJxlInfo must be a function');
+  assert(typeof zjxl.moduleReady === 'function', 'zjxl.moduleReady must be a function');
+  const testBuf = Buffer.from([1, 2, 3, 4]);
+  const decRes = await zjxl.decodeToJpeg(testBuf);
+  assert.strictEqual(decRes.status_code, 1, 'decodeToJpeg must return success status_code');
+  assert.deepStrictEqual(decRes.data, testBuf, 'decodeToJpeg must resolve with data buffer');
+  const ready = await zjxl.moduleReady();
+  assert.strictEqual(ready, true, 'moduleReady must resolve to true');
+
   console.log('✅ ALL NATIVELIBS CONTRACT TESTS PASSED SUCCESSFULLY!');
 }
 

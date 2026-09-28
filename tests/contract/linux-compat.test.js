@@ -30,8 +30,8 @@ async function runTests() {
 
   // 3. Test Config & Meta file creation
   console.log('Testing Config & Meta Files...');
-  _internals.initLinuxConfig();
-  const calDir = path.join(os.homedir(), '.config', 'ZaloData', 'cal');
+  const calDir = process.env.ZALO_CAL_DIR || path.join(os.tmpdir(), `zalo-test-cal-${Date.now()}`);
+  _internals.initLinuxConfig(calDir);
   assert(fs.existsSync(calDir), 'cal directory must exist');
 
   // Verify login.meta and all essential process metas are included
@@ -50,9 +50,12 @@ async function runTests() {
   // Test self-healing of empty/corrupted meta files
   const testCorruptPath = path.join(calDir, 'login.meta');
   fs.writeFileSync(testCorruptPath, '', 'utf8'); // 0-byte corrupt
-  _internals.initLinuxConfig();
+  _internals.initLinuxConfig(calDir);
   const repairedContent = JSON.parse(fs.readFileSync(testCorruptPath, 'utf8'));
   assert.strictEqual(repairedContent.initialized, true, 'Empty meta file must be self-healed');
+
+  // Clean up test corrupt meta
+  try { fs.rmSync(calDir, { recursive: true, force: true }); } catch (e) {}
 
   // 4. Test Diagnostic Stream & No Double Logging
   console.log('Testing Diagnostic Stream & De-duplication...');
@@ -102,6 +105,72 @@ async function runTests() {
   assert.strictEqual(themeManager.isUIWindow('file:///path/to/pc-dist/login.html'), true, 'login.html is UI window');
   assert.strictEqual(themeManager.isUIWindow('file:///path/to/pc-dist/sqlite.html'), false, 'sqlite.html is worker, NOT UI window');
   assert.strictEqual(themeManager.isUIWindow('file:///path/to/pc-dist/shared-worker.html'), false, 'shared-worker.html is worker, NOT UI window');
+
+  // Returning to login means the current auth cookie was rejected. Remove it
+  // before the main-process cookie check can load the authenticated page again.
+  const removedCookies = [];
+  let cookieStoreFlushed = false;
+  const loginContents = {
+    session: {
+      cookies: {
+        remove: async (url, name) => removedCookies.push([url, name]),
+        flushStore: async () => { cookieStoreFlushed = true; },
+      },
+    },
+  };
+  await _internals.clearRejectedLoginCookie(
+    loginContents,
+    'file:///path/to/pc-dist/login.html?type=25'
+  );
+  assert.deepStrictEqual(removedCookies, [
+    ['https://zaloapp.com', 'zpw_sek'],
+    ['https://zalo.me', 'zpw_sek'],
+    ['https://chat.zalo.me', 'zpw_sek'],
+  ], 'login navigation must remove the rejected auth cookie from every written domain');
+  assert.strictEqual(cookieStoreFlushed, true, 'rejected auth cookie removal must be persisted');
+  assert.deepStrictEqual(global.zCookiesData, { cookies: [] }, 'rejected cookie snapshot must be cleared from main-process memory');
+  assert.deepStrictEqual(global.zOldCookiesData, { cookies: [] }, 'legacy rejected cookie snapshot must be cleared from main-process memory');
+  assert.strictEqual(global._callCheckCookies, false, 'pending stale-cookie checks must be cancelled');
+  assert.strictEqual(global._doneGetCookies, false, 'completed stale-cookie checks must be invalidated');
+
+  removedCookies.length = 0;
+  await _internals.clearRejectedLoginCookie(loginContents, 'file:///path/to/pc-dist/index.html');
+  assert.deepStrictEqual(removedCookies, [], 'authenticated navigation must keep the auth cookie');
+
+  // Verify auth cookie synchronization across all required endpoints
+  const writtenCookies = [];
+  let syncStoreFlushed = false;
+  const mockSyncSession = {
+    cookies: {
+      set: async (details) => writtenCookies.push(details),
+      flushStore: async () => { syncStoreFlushed = true; },
+    },
+  };
+  await _internals.syncAuthCookie(mockSyncSession, 'test-auth-token-12345');
+  assert.strictEqual(syncStoreFlushed, true, 'syncAuthCookie must flush cookie store');
+  assert.strictEqual(writtenCookies.length, _internals.AUTH_COOKIE_TARGETS.length, 'All target domains must receive cookie');
+  assert(writtenCookies.some(c => c.url === 'https://wpa.chat.zalo.me' && c.domain === '.zalo.me'), 'wpa.chat.zalo.me with .zalo.me domain must be set');
+  assert(writtenCookies.some(c => c.url === 'https://wpa.chat.zalo.me' && c.domain === 'wpa.chat.zalo.me'), 'wpa.chat.zalo.me host domain must be set');
+  assert(writtenCookies.every(c => c.value === 'test-auth-token-12345' && c.name === 'zpw_sek'), 'All written cookies must have correct name and value');
+
+  // Verify zfile protocol registration
+  let registeredScheme = null;
+  let registeredHandler = null;
+  const mockProtocolSession = {
+    protocol: {
+      isProtocolRegistered: (scheme) => false,
+      registerFileProtocol: (scheme, handler) => {
+        registeredScheme = scheme;
+        registeredHandler = handler;
+      }
+    }
+  };
+  _internals.registerZfileProtocol(mockProtocolSession);
+  assert.strictEqual(registeredScheme, 'zfile', 'registerZfileProtocol must register zfile scheme');
+  assert.strictEqual(typeof registeredHandler, 'function', 'registerZfileProtocol handler must be a function');
+  let handledPath = null;
+  registeredHandler({ url: 'zfile:///home/user/photo.jpg' }, (res) => { handledPath = res.path; });
+  assert.strictEqual(handledPath, '/home/user/photo.jpg', 'zfile protocol must resolve file path correctly');
 
   // Cyberpunk is the DEFAULT theme; ZALO_THEME only opts out
   const originalEnv = process.env.ZALO_THEME;
