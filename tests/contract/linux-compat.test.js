@@ -275,6 +275,52 @@ async function runTests() {
   // Clean up test userData dir
   try { fs.rmSync(testUserDataDir, { recursive: true, force: true }); } catch (e) {}
 
+  // 8. Test System Tray & Spellchecker Configuration
+  console.log('Testing System Tray & Spellchecker Configuration...');
+  const iconPath = _internals.getTrayIconPath();
+  assert(iconPath && fs.existsSync(iconPath), 'getTrayIconPath must return existing icon file: ' + iconPath);
+
+  let spellcheckerDisabled = false;
+  const mockSpellSession = {
+    setSpellCheckerEnabled: (enabled) => {
+      spellcheckerDisabled = !enabled;
+    }
+  };
+  delete process.env.ZALO_SPELLCHECK;
+  _internals.disableSpellcheckerIfConfigured(mockSpellSession);
+  assert.strictEqual(spellcheckerDisabled, true, 'disableSpellcheckerIfConfigured must disable spellchecker by default');
+
+  let trayCreated = false;
+  let menuBuilt = false;
+  const mockElectron = {
+    app: {
+      isQuitting: false,
+      quit: () => {},
+    },
+    Tray: function(icon) {
+      this.icon = icon;
+      trayCreated = true;
+      this.setToolTip = () => {};
+      this.setContextMenu = () => {};
+      this.on = () => {};
+    },
+    Menu: {
+      buildFromTemplate: (template) => {
+        menuBuilt = true;
+        assert(Array.isArray(template), 'Menu template must be an array');
+        assert(template.some(item => item.label === 'Mở Zalo'), 'Menu must contain Mở Zalo');
+        assert(template.some(item => item.label === 'Thoát Zalo'), 'Menu must contain Thoát Zalo');
+        return {};
+      }
+    },
+    BrowserWindow: {
+      getAllWindows: () => []
+    }
+  };
+  _internals.initSystemTray(mockElectron);
+  assert.strictEqual(trayCreated, true, 'initSystemTray must create Tray');
+  assert.strictEqual(menuBuilt, true, 'initSystemTray must build ContextMenu');
+
   console.log('✅ ALL LINUX-COMPAT COORDINATOR TESTS PASSED SUCCESSFULLY!');
 }
 

@@ -336,6 +336,126 @@ function registerZfileProtocol(ses) {
   }
 }
 
+let appTray = null;
+
+function getTrayIconPath() {
+  const possibleIcons = [
+    path.resolve(__dirname, '..', 'pc-dist', 'favicon-32x32.png'),
+    path.resolve(__dirname, '..', 'pc-dist', 'favicon-96x96.v1.png'),
+    path.resolve(__dirname, '..', 'pc-dist', 'favicon-128x128.png'),
+    path.resolve(__dirname, '..', 'pc-dist', 'favicon.ico'),
+  ];
+  for (const iconPath of possibleIcons) {
+    if (fs.existsSync(iconPath)) return iconPath;
+  }
+  return null;
+}
+
+function disableSpellcheckerIfConfigured(ses) {
+  if (!ses) return;
+  // By default on Linux, disable spellchecker unless ZALO_SPELLCHECK=1
+  // This prevents red squiggly underlines on all Vietnamese chat messages
+  if (process.env.ZALO_SPELLCHECK !== '1' && typeof ses.setSpellCheckerEnabled === 'function') {
+    try {
+      ses.setSpellCheckerEnabled(false);
+      writeDiagnostic('Session', 'Disabled spellchecker to prevent red underlines on Vietnamese text');
+    } catch (e) {
+      writeDiagnostic('Session WARN', `Failed to disable spellchecker: ${e.message}`);
+    }
+  }
+}
+
+function initSystemTray(electron) {
+  if (appTray || process.env.ZALO_DISABLE_TRAY === '1') return;
+  const { app, Tray, Menu, nativeImage, BrowserWindow } = electron;
+  if (!Tray || !Menu || !BrowserWindow) return;
+
+  const iconPath = getTrayIconPath();
+  if (!iconPath) return;
+
+  try {
+    const icon = nativeImage && typeof nativeImage.createFromPath === 'function'
+      ? nativeImage.createFromPath(iconPath)
+      : iconPath;
+    appTray = new Tray(icon);
+    appTray.setToolTip('Zalo PC (Linux)');
+
+    const showMainWindow = () => {
+      const allWindows = BrowserWindow.getAllWindows();
+      const uiWin = allWindows.find(w => {
+        if (!w || w.isDestroyed()) return false;
+        let url = '';
+        try {
+          url = w.webContents && !w.webContents.isDestroyed() ? w.webContents.getURL() : '';
+        } catch (e) {}
+        return themeManager.isUIWindow(url) || !url;
+      }) || allWindows[0];
+
+      if (uiWin) {
+        if (uiWin.isMinimized()) uiWin.restore();
+        uiWin.show();
+        uiWin.focus();
+      }
+    };
+
+    const toggleMainWindow = () => {
+      const allWindows = BrowserWindow.getAllWindows();
+      const uiWin = allWindows.find(w => {
+        if (!w || w.isDestroyed()) return false;
+        let url = '';
+        try {
+          url = w.webContents && !w.webContents.isDestroyed() ? w.webContents.getURL() : '';
+        } catch (e) {}
+        return themeManager.isUIWindow(url) || !url;
+      }) || allWindows[0];
+
+      if (uiWin) {
+        if (uiWin.isVisible() && !uiWin.isMinimized()) {
+          uiWin.hide();
+        } else {
+          if (uiWin.isMinimized()) uiWin.restore();
+          uiWin.show();
+          uiWin.focus();
+        }
+      }
+    };
+
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Mở Zalo',
+        click: () => showMainWindow(),
+      },
+      {
+        label: 'Giao diện Cyberpunk',
+        type: 'checkbox',
+        checked: themeManager.isCyberpunkEnabled(),
+        click: (menuItem) => {
+          const allWindows = BrowserWindow.getAllWindows();
+          for (const w of allWindows) {
+            themeManager.setCyberpunkTheme(w, menuItem.checked);
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Thoát Zalo',
+        click: () => {
+          app.isQuitting = true;
+          app.quit();
+        },
+      },
+    ]);
+
+    appTray.setContextMenu(contextMenu);
+    appTray.on('click', () => {
+      toggleMainWindow();
+    });
+    writeDiagnostic('Tray', 'System tray initialized successfully');
+  } catch (err) {
+    writeDiagnostic('Tray WARN', `Failed to initialize system tray: ${err.message}`);
+  }
+}
+
 // ==========================================
 // 5. Window Lifecycle & DevTools Hooks
 // ==========================================
@@ -359,11 +479,15 @@ function installWindowHooks() {
     app.whenReady().then(() => {
       try {
         if (electron.session) {
-          registerZfileProtocol(electron.session.fromPartition('persist:zalo'));
+          const persistSes = electron.session.fromPartition('persist:zalo');
+          registerZfileProtocol(persistSes);
+          disableSpellcheckerIfConfigured(persistSes);
           if (electron.session.defaultSession) {
             registerZfileProtocol(electron.session.defaultSession);
+            disableSpellcheckerIfConfigured(electron.session.defaultSession);
           }
         }
+        initSystemTray(electron);
       } catch (e) {}
     }).catch(() => {});
   }
@@ -426,6 +550,7 @@ function installWindowHooks() {
     if (ses && !probedSessions.has(ses)) {
       probedSessions.add(ses);
       registerZfileProtocol(ses);
+      disableSpellcheckerIfConfigured(ses);
       const partition = electron.session && ses === electron.session.fromPartition('persist:zalo')
         ? 'persist:zalo'
         : 'other';
@@ -555,6 +680,33 @@ function installWindowHooks() {
         console.error(`[Window Navigate ERROR] ${errorMsg}`);
       }
     });
+
+    // Minimize to tray on close if tray is enabled
+    win.on('close', (closeEvent) => {
+      if (app.isQuitting) return;
+      if (process.env.ZALO_DISABLE_TRAY === '1') return;
+
+      let url = '';
+      try {
+        url = win.webContents && !win.webContents.isDestroyed() ? win.webContents.getURL() : '';
+      } catch (e) {}
+
+      if (themeManager.isUIWindow(url) || !url) {
+        closeEvent.preventDefault();
+        win.hide();
+        writeDiagnostic('Window', `Window minimized to tray instead of closing: ${url || 'initial'}`);
+      }
+    });
+
+    // Handle startup --minimized / --hidden
+    if (process.argv.some(arg => arg === '--minimized' || arg === '--hidden')) {
+      win.webContents.once('did-finish-load', () => {
+        if (!win.isDestroyed()) {
+          win.hide();
+          writeDiagnostic('Window', 'Window launched minimized to tray');
+        }
+      });
+    }
   });
 }
 
@@ -733,5 +885,9 @@ module.exports = {
     getLogPath: () => resolvedLogPath,
     REQUIRED_META_FILES,
     themeManager,
+    initSystemTray,
+    disableSpellcheckerIfConfigured,
+    getTrayIconPath,
+    getAppTray: () => appTray,
   },
 };

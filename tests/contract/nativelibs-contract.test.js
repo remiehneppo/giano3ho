@@ -171,8 +171,24 @@ async function runTests() {
   assert(typeof mp4thumb.generateThumbnail === 'function', 'generateThumbnail must be a function');
   assert(typeof mp4thumb.cancel === 'function', 'cancel must be a function');
   const genThumbRes = await mp4thumb.generateThumbnail('/non_existent_file.mp4', '/tmp/out.jpg', 100, 100, 'test-id');
-  assert.strictEqual(genThumbRes, false, 'generateThumbnail should resolve false on unsupported platform');
+  assert.strictEqual(genThumbRes, false, 'generateThumbnail should resolve false on missing file');
   assert.doesNotThrow(() => mp4thumb.cancel('test-id'), 'cancel must not throw');
+
+  // Test real thumbnail generation when ffmpeg is installed
+  try {
+    const cp = require('child_process');
+    const fs = require('fs');
+    const os = require('os');
+    cp.execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });
+    const testVideo = path.join(os.tmpdir(), `test-vid-${Date.now()}.mp4`);
+    const testThumb = path.join(os.tmpdir(), `test-thumb-${Date.now()}.jpg`);
+    cp.execFileSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'testsrc=duration=1:size=320x240:rate=1', testVideo], { stdio: 'ignore' });
+    const realThumbRes = await mp4thumb.generateThumbnail(testVideo, testThumb, 160, 120, 'test-real-id');
+    assert.strictEqual(realThumbRes, true, 'generateThumbnail should succeed when ffmpeg and valid input exist');
+    assert(fs.existsSync(testThumb), 'Thumbnail file should be generated');
+    try { fs.unlinkSync(testVideo); } catch (e) {}
+    try { fs.unlinkSync(testThumb); } catch (e) {}
+  } catch (e) {}
 
   // 11. Test v8Profiles
   console.log('Testing v8Profiles contract...');

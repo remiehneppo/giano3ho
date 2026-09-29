@@ -94,10 +94,27 @@ Chạy script:
   ```bash
   ELECTRON_BIN=/duong/dan/toi/electron ./run.sh
   ```
-- Chỉ định màn hình X11:
+- Chỉ định màn hình X11 / Wayland:
   ```bash
   DISPLAY=:0 ./run.sh
   ```
+- Buộc chạy X11 / XWayland thay vì Wayland native:
+  ```bash
+  ZALO_FORCE_X11=1 ./run.sh
+  ```
+- Bật/Tắt Khay hệ thống (System Tray):
+  * Mặc định Zalo tự tạo System Tray, khi bấm nút [X] cửa sổ sẽ thu nhỏ xuống khay thay vì tắt hẳn.
+  * Tắt tính năng khay hệ thống nếu muốn đóng app hoàn toàn khi bấm [X]:
+    ```bash
+    ZALO_DISABLE_TRAY=1 ./run.sh
+    ```
+- Khởi động ngầm xuống khay hệ thống (Silent / Minimized startup):
+  ```bash
+  ./run.sh --minimized
+  ```
+- Tắt/Bật kiểm tra chính tả (Spellchecker):
+  * Mặc định đã TẮT để không bị gạch chân đỏ răng cưa trên tin nhắn tiếng Việt.
+  * Bật lại spellchecker tiếng Anh: `ZALO_SPELLCHECK=1 ./run.sh`
 - Chỉ định vị trí file log:
   ```bash
   ZALO_DEBUG_LOG=/tmp/zalo.log ./run.sh
@@ -111,7 +128,24 @@ Chạy script:
 
 ---
 
-## 6. Quy ước branch (Branching)
+## 6. Cài đặt Desktop Integration (Menu ứng dụng & Autostart)
+
+Để Zalo xuất hiện trong danh mục ứng dụng của Linux (GNOME Dash, KDE Kickoff, Rofi) và tự khởi động cùng hệ thống:
+
+```bash
+# Cài đặt launcher vào menu ứng dụng
+./install-desktop.sh
+
+# Cài đặt launcher kèm kích hoạt tự khởi động ngầm (Start Minimized to Tray) khi bật máy:
+./install-desktop.sh --autostart
+
+# Gỡ bỏ tích hợp desktop:
+./install-desktop.sh --uninstall
+```
+
+---
+
+## 7. Quy ước branch (Branching)
 
 | Branch | Vai trò |
 | --- | --- |

@@ -1,4 +1,7 @@
 
+const fs = require('fs');
+const cp = require('child_process');
+
 let CachedModule = {};
 
 function getLib() {
@@ -20,10 +23,73 @@ function getLib() {
     if (!thumbModule) {
         thumbModule = {
             MP4Thumb: function MP4Thumb() {
+                let currentProc = null;
                 return {
-                    generateThumbnailAsync: async () => false,
-                    generateThumbnail: () => false,
-                    cancel: () => {}
+                    generateThumbnailAsync: async (inputPath, outputPath, maxWidth, maxHeight) => {
+                        if (!inputPath || typeof inputPath !== 'string' || !fs.existsSync(inputPath)) {
+                            return false;
+                        }
+                        if (!outputPath || typeof outputPath !== 'string') {
+                            return false;
+                        }
+
+                        return new Promise((resolve) => {
+                            const args = ['-y', '-i', inputPath, '-ss', '00:00:00', '-vframes', '1'];
+                            if (maxWidth && maxHeight) {
+                                args.push('-vf', `scale='min(${maxWidth},iw)':'min(${maxHeight},ih)':force_original_aspect_ratio=decrease`);
+                            } else if (maxWidth) {
+                                args.push('-vf', `scale='min(${maxWidth},iw)':-1`);
+                            } else if (maxHeight) {
+                                args.push('-vf', `scale=-1:'min(${maxHeight},ih)'`);
+                            }
+                            args.push(outputPath);
+
+                            try {
+                                currentProc = cp.execFile('ffmpeg', args, (err) => {
+                                    currentProc = null;
+                                    if (!err && fs.existsSync(outputPath)) {
+                                        resolve(true);
+                                    } else {
+                                        resolve(false);
+                                    }
+                                });
+                            } catch (e) {
+                                currentProc = null;
+                                resolve(false);
+                            }
+                        });
+                    },
+                    generateThumbnail: (inputPath, outputPath, maxWidth, maxHeight) => {
+                        if (!inputPath || typeof inputPath !== 'string' || !fs.existsSync(inputPath)) {
+                            return false;
+                        }
+                        if (!outputPath || typeof outputPath !== 'string') {
+                            return false;
+                        }
+                        try {
+                            const args = ['-y', '-i', inputPath, '-ss', '00:00:00', '-vframes', '1'];
+                            if (maxWidth && maxHeight) {
+                                args.push('-vf', `scale='min(${maxWidth},iw)':'min(${maxHeight},ih)':force_original_aspect_ratio=decrease`);
+                            } else if (maxWidth) {
+                                args.push('-vf', `scale='min(${maxWidth},iw)':-1`);
+                            } else if (maxHeight) {
+                                args.push('-vf', `scale=-1:'min(${maxHeight},ih)'`);
+                            }
+                            args.push(outputPath);
+                            cp.execFileSync('ffmpeg', args, { stdio: 'ignore' });
+                            return fs.existsSync(outputPath);
+                        } catch (e) {
+                            return false;
+                        }
+                    },
+                    cancel: () => {
+                        if (currentProc) {
+                            try {
+                                currentProc.kill('SIGKILL');
+                            } catch (e) {}
+                            currentProc = null;
+                        }
+                    }
                 };
             }
         };

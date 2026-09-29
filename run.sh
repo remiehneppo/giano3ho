@@ -73,22 +73,34 @@ if [ -z "$RESOLVED_ELECTRON" ] || [ ! -x "$RESOLVED_ELECTRON" ]; then
     exit 1
 fi
 
-# 2. Ensure X11 display is set
-if [ -z "$DISPLAY" ]; then
-    if [ -S "/tmp/.X11-unix/X1" ]; then
-        export DISPLAY=:1
-    elif [ -S "/tmp/.X11-unix/X0" ]; then
-        export DISPLAY=:0
-    else
-        export DISPLAY=:0
+# 2. Resolve Display Server (Wayland or X11)
+IS_WAYLAND=0
+SESSION_TYPE_LOWER="$(echo "${XDG_SESSION_TYPE:-}" | tr '[:upper:]' '[:lower:]')"
+if [ "$SESSION_TYPE_LOWER" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+    IS_WAYLAND=1
+fi
+
+if [ "$IS_WAYLAND" = "1" ] && [ "${ZALO_FORCE_X11:-0}" != "1" ]; then
+    DISPLAY_INFO="Wayland Native (Ozone)"
+else
+    # Ensure X11 display is set
+    if [ -z "$DISPLAY" ]; then
+        if [ -S "/tmp/.X11-unix/X1" ]; then
+            export DISPLAY=:1
+        elif [ -S "/tmp/.X11-unix/X0" ]; then
+            export DISPLAY=:0
+        else
+            export DISPLAY=:0
+        fi
     fi
+    DISPLAY_INFO="X11 ($DISPLAY)"
 fi
 
 echo "=================================================="
 echo " Starting Zalo PC (Linux)"
 echo " App Directory: $APP_DIR"
 echo " Electron:      $RESOLVED_ELECTRON"
-echo " Display:       $DISPLAY"
+echo " Display:       $DISPLAY_INFO"
 echo "=================================================="
 
 # 3. Prepare launch environment and flags
@@ -101,6 +113,16 @@ if [ "${ZALO_NO_SANDBOX:-1}" = "1" ] || [ "$(id -u)" = "0" ]; then
 fi
 # Disable /dev/shm usage to avoid shared memory allocation failures on Linux/containers
 EXTRA_FLAGS+=("--disable-dev-shm-usage")
+
+# Native Wayland & IME support (IBus, Fcitx5, Bamboo)
+if [ "$IS_WAYLAND" = "1" ] && [ "${ZALO_FORCE_X11:-0}" != "1" ]; then
+    EXTRA_FLAGS+=(
+        "--ozone-platform-hint=auto"
+        "--enable-features=WaylandWindowDecorations"
+        "--enable-wayland-ime"
+    )
+fi
+
 if [ -n "$ZALO_USER_DATA_DIR" ]; then
     EXTRA_FLAGS+=("--user-data-dir=$ZALO_USER_DATA_DIR")
 fi
