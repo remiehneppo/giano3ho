@@ -321,6 +321,13 @@ async function runTests() {
   assert.strictEqual(trayCreated, true, 'initSystemTray must create Tray');
   assert.strictEqual(menuBuilt, true, 'initSystemTray must build ContextMenu');
 
+  // 9. Test Auto-launch IPC Handlers
+  console.log('Testing Auto-launch IPC Handlers...');
+  assert.strictEqual(typeof _internals.handleCheckAutoLaunch, 'function', 'handleCheckAutoLaunch must be a function');
+  assert.strictEqual(typeof _internals.handleToggleAutoLaunch, 'function', 'handleToggleAutoLaunch must be a function');
+  const initialAutolaunch = _internals.handleCheckAutoLaunch();
+  assert(typeof initialAutolaunch === 'boolean', 'handleCheckAutoLaunch must return a boolean');
+
   console.log('✅ ALL LINUX-COMPAT COORDINATOR TESTS PASSED SUCCESSFULLY!');
 }
 

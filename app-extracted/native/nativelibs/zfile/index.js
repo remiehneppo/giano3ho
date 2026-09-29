@@ -88,25 +88,17 @@ function getLib() {
             'C:\\': { ...rootDrive, name: 'C:\\', path: 'C:\\' },
         };
 
-        return new Proxy(drives, {
-            get(target, prop) {
-                if (typeof prop === 'string') {
-                    if (prop in target) return target[prop];
-                    if (['then', 'catch', 'finally', 'toJSON', 'inspect'].includes(prop) || prop.startsWith('_')) {
-                        return undefined;
-                    }
-                    return {
-                        name: prop,
-                        path: prop,
-                        label: prop,
-                        isExternal: false,
-                        totalSpace: total,
-                        usedSpace: used,
-                    };
-                }
-                return target[prop];
-            },
-        });
+        // Pre-populate drives A-Z to satisfy all Windows drive query conventions
+        for (let i = 65; i <= 90; i++) {
+            const letter = String.fromCharCode(i);
+            const driveObj = { ...rootDrive, name: letter + ':', path: letter + ':\\', label: letter };
+            drives[letter + ':'] = driveObj;
+            drives[letter + ':\\'] = driveObj;
+            drives[letter.toLowerCase() + ':'] = driveObj;
+            drives[letter.toLowerCase() + ':\\'] = driveObj;
+        }
+
+        return drives;
     };
 
     const copyFolder = async (src, dest, callback) => {

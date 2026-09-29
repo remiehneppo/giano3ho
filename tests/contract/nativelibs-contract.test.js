@@ -32,6 +32,11 @@ async function runTests() {
   assert.strictEqual(diskInfo['/'].path, '/', 'Root drive must have path: /');
   assert.strictEqual(diskInfo['C:'].path, 'C:\\', 'C: drive must have path: C:\\');
 
+  // Verify diskInfo can be safely transferred over IPC via structuredClone without throwing DataCloneError
+  assert.doesNotThrow(() => {
+    structuredClone(diskInfo);
+  }, 'diskInfo must be cloneable for IPC transport without throwing DataCloneError');
+
   // Test proxy fallback for Windows drive queries
   assert(diskInfo['C:'] && diskInfo['C:'].totalSpace > 0, "diskInfo['C:'] must resolve safely");
   assert(diskInfo['C:\\'] && diskInfo['C:\\'].totalSpace > 0, "diskInfo['C:\\'] must resolve safely");

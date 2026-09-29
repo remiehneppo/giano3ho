@@ -456,6 +456,40 @@ function initSystemTray(electron) {
   }
 }
 
+function handleCheckAutoLaunch() {
+  try {
+    const autostartFile = path.join(os.homedir(), '.config', 'autostart', 'zalo.desktop');
+    return fs.existsSync(autostartFile);
+  } catch (e) {
+    return false;
+  }
+}
+
+function handleToggleAutoLaunch(enable) {
+  try {
+    const autostartDir = path.join(os.homedir(), '.config', 'autostart');
+    const autostartFile = path.join(autostartDir, 'zalo.desktop');
+    const shouldEnable = Boolean(enable);
+    if (shouldEnable) {
+      fs.mkdirSync(autostartDir, { recursive: true });
+      const runShPath = path.resolve(__dirname, '..', '..', 'run.sh');
+      const iconPath = path.resolve(__dirname, '..', 'pc-dist', 'favicon-512x512.png');
+      const content = `[Desktop Entry]\nVersion=1.0\nType=Application\nName=Zalo (Autostart)\nComment=Zalo Desktop Client (Start Minimized)\nExec="${runShPath}" --minimized\nIcon=${iconPath}\nTerminal=false\nStartupWMClass=Zalo\nCategories=Network;InstantMessaging;Chat;\nX-GNOME-Autostart-enabled=true\n`;
+      fs.writeFileSync(autostartFile, content, 'utf8');
+      writeDiagnostic("AutoLaunch", "Enabled Linux autostart (~/.config/autostart/zalo.desktop)");
+    } else {
+      if (fs.existsSync(autostartFile)) {
+        fs.unlinkSync(autostartFile);
+        writeDiagnostic("AutoLaunch", "Disabled Linux autostart");
+      }
+    }
+    return shouldEnable;
+  } catch (e) {
+    writeDiagnostic("AutoLaunch WARN", `Failed to toggle autostart: ${e.message}`);
+    return false;
+  }
+}
+
 // ==========================================
 // 5. Window Lifecycle & DevTools Hooks
 // ==========================================
@@ -514,6 +548,10 @@ function installWindowHooks() {
           global.zCookiesData = { cookies: [{ name: 'zpw_sek', value: latestAuthCookie, domain: '.zalo.me' }] };
           global.zOldCookiesData = { cookies: [{ name: 'zpw_sek', value: latestAuthCookie, domain: '.zalo.me' }] };
         }
+      } else if (channel === "check-auto-launch") {
+        return handleCheckAutoLaunch();
+      } else if (channel === "toggle-auto-launch") {
+        return handleToggleAutoLaunch(args[0]);
       }
 
       if (IS_DEBUG && watched) {
@@ -526,7 +564,26 @@ function installWindowHooks() {
         });
       }
 
-      const result = await listener(event, ...args);
+      let result;
+      try {
+        result = await listener(event, ...args);
+      } catch (err) {
+        writeDiagnostic("IPC ERROR", `Error in handler for '${channel}': ${err.message}`);
+        if (channel === "check-auto-launch") return false;
+        if (channel === "toggle-auto-launch") return false;
+        throw err;
+      }
+
+      // Ensure result can be structured-cloned across IPC boundary without throwing
+      if (result && typeof result === 'object' && !(result instanceof Buffer) && !(result instanceof Error)) {
+        try {
+          structuredClone(result);
+        } catch (cloneErr) {
+          try {
+            result = JSON.parse(JSON.stringify(result));
+          } catch (jsonErr) {}
+        }
+      }
 
       if (IS_DEBUG && watched) {
         const cookies = await electron.session.fromPartition("persist:zalo").cookies.get({
@@ -889,5 +946,7 @@ module.exports = {
     disableSpellcheckerIfConfigured,
     getTrayIconPath,
     getAppTray: () => appTray,
+    handleCheckAutoLaunch,
+    handleToggleAutoLaunch,
   },
 };
