@@ -282,6 +282,31 @@ async function clearRejectedLoginCookie(contents, url) {
   writeDiagnostic('Auth', 'Removed rejected zpw_sek cookie after login navigation');
 }
 
+function sanitizeZfilePath(rawUrl) {
+  if (typeof rawUrl !== 'string') return null;
+  let p;
+  try {
+    p = decodeURIComponent(rawUrl.replace(/^zfile:\/+/i, '/'));
+  } catch (e) {
+    return null;
+  }
+  if (p.includes('\0')) return null;
+  if (p.startsWith('/media/')) p = p.substring(6);
+  p = path.normalize(p);
+  if (!path.isAbsolute(p)) return null;
+
+  // Block sensitive OS root directories
+  const blockedPrefixes = ['/etc', '/proc', '/sys', '/dev', '/boot', '/root'];
+  if (blockedPrefixes.some(prefix => p === prefix || p.startsWith(prefix + '/'))) {
+    return null;
+  }
+  // Block sensitive credentials and dotfiles
+  if (/[\/\\]\.(ssh|gnupg|aws|bashrc|bash_profile|zshrc)($|[\/\\])/i.test(p)) {
+    return null;
+  }
+  return p;
+}
+
 function registerZfileProtocol(ses) {
   if (!ses || !ses.protocol) return;
   try {
@@ -289,9 +314,12 @@ function registerZfileProtocol(ses) {
       return;
     }
     ses.protocol.registerFileProtocol('zfile', (request, callback) => {
-      let p = decodeURIComponent(request.url.replace(/^zfile:\/+/i, '/'));
-      if (p.startsWith('/media/')) p = p.substring(6);
-      callback({ path: p });
+      const sanitized = sanitizeZfilePath(request.url);
+      if (!sanitized) {
+        writeDiagnostic('Protocol WARN', `Blocked potentially unsafe zfile request: ${request.url}`);
+        return callback({ error: -10 });
+      }
+      callback({ path: sanitized });
     });
     writeDiagnostic('Protocol', 'Registered zfile file protocol for session');
   } catch (e) {
@@ -316,7 +344,7 @@ function installWindowHooks() {
     return;
   }
 
-  app.commandLine.appendSwitch("disable-http-cache");
+  const IS_DEBUG = process.env.ZALO_LINUX_DEBUG === '1' || process.env.DEBUG === '1';
 
   if (typeof app.whenReady === 'function') {
     app.whenReady().then(() => {
@@ -334,7 +362,7 @@ function installWindowHooks() {
   const originalHandle = electron.ipcMain.handle.bind(electron.ipcMain);
   electron.ipcMain.handle = (channel, listener) => {
     const watched = channel === "_electron_set-app-cookie" || channel === "login-success";
-    if (watched) writeDiagnostic("DEBUG-ipc-register", channel);
+    if (IS_DEBUG && watched) writeDiagnostic("DEBUG-ipc-register", channel);
     return originalHandle(channel, async (event, ...args) => {
       if (channel === "_electron_set-app-cookie") {
         const token = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].value ? args[0].value : null);
@@ -355,7 +383,7 @@ function installWindowHooks() {
         }
       }
 
-      if (watched) {
+      if (IS_DEBUG && watched) {
         writeDiagnostic("DEBUG-ipc-call", {
           channel,
           partition: event.sender.session === electron.session.fromPartition("persist:zalo")
@@ -367,7 +395,7 @@ function installWindowHooks() {
 
       const result = await listener(event, ...args);
 
-      if (watched) {
+      if (IS_DEBUG && watched) {
         const cookies = await electron.session.fromPartition("persist:zalo").cookies.get({
           url: "https://wpa.chat.zalo.me",
           name: "zpw_sek",
@@ -393,7 +421,7 @@ function installWindowHooks() {
         ? 'persist:zalo'
         : 'other';
       const reportHeader = (stage, details) => {
-        if (!details.url.includes('/api/login/getLoginInfo')) return;
+        if (!IS_DEBUG || !details.url.includes('/api/login/getLoginInfo')) return;
         const header = details.requestHeaders.Cookie || details.requestHeaders.cookie || '';
         const authCookie = header.split(';').map(part => part.trim())
           .find(part => part.startsWith('zpw_sek='));
@@ -436,26 +464,29 @@ function installWindowHooks() {
           delete headers.cookie;
         }
 
-        reportHeader('before', details);
-
-        if (details.url.includes('/api/login/getLoginInfo')) {
-          ses.cookies.get({ url: 'https://wpa.chat.zalo.me' }).then(cookies => {
-            writeDiagnostic('DEBUG-auth-store', JSON.stringify({
-              partition,
-              cookies: cookies.filter(cookie => cookie.name === 'zpw_sek').map(cookie => ({
-                domain: cookie.domain,
-                path: cookie.path,
-                secure: cookie.secure,
-                sameSite: cookie.sameSite,
-                expirationDate: cookie.expirationDate,
-              })),
-            }));
-          });
+        if (IS_DEBUG) {
+          reportHeader('before', details);
+          if (details.url.includes('/api/login/getLoginInfo')) {
+            ses.cookies.get({ url: 'https://wpa.chat.zalo.me' }).then(cookies => {
+              writeDiagnostic('DEBUG-auth-store', JSON.stringify({
+                partition,
+                cookies: cookies.filter(cookie => cookie.name === 'zpw_sek').map(cookie => ({
+                  domain: cookie.domain,
+                  path: cookie.path,
+                  secure: cookie.secure,
+                  sameSite: cookie.sameSite,
+                  expirationDate: cookie.expirationDate,
+                })),
+              }));
+            }).catch(() => {});
+          }
         }
         callback({ requestHeaders: headers });
       });
 
-      ses.webRequest.onSendHeaders(authFilter, details => reportHeader('sent', details));
+      if (IS_DEBUG) {
+        ses.webRequest.onSendHeaders(authFilter, details => reportHeader('sent', details));
+      }
     }
 
     // Shortcuts: DevTools (F12, Ctrl+Shift+I) & Theme triggers
@@ -571,6 +602,7 @@ module.exports = {
     syncAuthCookie,
     AUTH_COOKIE_TARGETS,
     registerZfileProtocol,
+    sanitizeZfilePath,
     getLogPath: () => resolvedLogPath,
     REQUIRED_META_FILES,
     themeManager,

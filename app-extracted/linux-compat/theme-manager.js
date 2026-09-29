@@ -234,8 +234,9 @@ function attachWindowHooks(win) {
   contents.on('dom-ready', () => {
     if (win.isDestroyed() || contents.isDestroyed() || contents.isCrashed()) return;
 
-    // DEBUG: capture unhandled promise rejections in renderer to diagnose login loop
-    if (!win.isDestroyed() && !contents.isDestroyed()) {
+    // DEBUG: capture unhandled promise rejections in renderer to diagnose login loop (when debug enabled)
+    const isDebug = process.env.ZALO_LINUX_DEBUG === '1' || process.env.DEBUG === '1';
+    if (isDebug && !win.isDestroyed() && !contents.isDestroyed()) {
       contents.executeJavaScript(`
         if (!window.__debugRejectionInstalled) {
           window.__debugRejectionInstalled = true;

@@ -172,6 +172,23 @@ async function runTests() {
   registeredHandler({ url: 'zfile:///home/user/photo.jpg' }, (res) => { handledPath = res.path; });
   assert.strictEqual(handledPath, '/home/user/photo.jpg', 'zfile protocol must resolve file path correctly');
 
+  // Verify zfile security against path traversal and sensitive files
+  let traversalBlocked = false;
+  registeredHandler({ url: 'zfile:///home/user/../../etc/passwd' }, (res) => { traversalBlocked = res && res.error === -10; });
+  assert.strictEqual(traversalBlocked, true, 'zfile must block directory traversal attacks');
+
+  let sysBlocked = false;
+  registeredHandler({ url: 'zfile:///etc/shadow' }, (res) => { sysBlocked = res && res.error === -10; });
+  assert.strictEqual(sysBlocked, true, 'zfile must block access to /etc');
+
+  let dotfileBlocked = false;
+  registeredHandler({ url: 'zfile:///home/user/.ssh/id_rsa' }, (res) => { dotfileBlocked = res && res.error === -10; });
+  assert.strictEqual(dotfileBlocked, true, 'zfile must block access to .ssh files');
+
+  let mediaHandled = null;
+  registeredHandler({ url: 'zfile:///media/home/user/photo.jpg' }, (res) => { mediaHandled = res.path; });
+  assert.strictEqual(mediaHandled, '/home/user/photo.jpg', 'zfile must resolve /media/ prefix safely');
+
   // Cyberpunk is the DEFAULT theme; ZALO_THEME only opts out
   const originalEnv = process.env.ZALO_THEME;
   try {
