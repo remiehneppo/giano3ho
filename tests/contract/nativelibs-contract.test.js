@@ -162,12 +162,46 @@ async function runTests() {
   assert(typeof zjxl.bitmapToJxl === 'function', 'zjxl.bitmapToJxl must be a function');
   assert(typeof zjxl.getJxlInfo === 'function', 'zjxl.getJxlInfo must be a function');
   assert(typeof zjxl.moduleReady === 'function', 'zjxl.moduleReady must be a function');
+  assert(typeof zjxl.jxlDecompressMulti === 'function', 'zjxl.jxlDecompressMulti must be a function');
+
   const testBuf = Buffer.from([1, 2, 3, 4]);
   const decRes = await zjxl.decodeToJpeg(testBuf);
   assert.strictEqual(decRes.status_code, 1, 'decodeToJpeg must return success status_code');
   assert.deepStrictEqual(decRes.data, testBuf, 'decodeToJpeg must resolve with data buffer');
   const ready = await zjxl.moduleReady();
   assert.strictEqual(ready, true, 'moduleReady must resolve to true');
+
+  // Test real JXL decoding & multi-decompression when ffmpeg is available
+  try {
+    const cp = require('child_process');
+    const fs = require('fs');
+    const os = require('os');
+    const testJxlPath = path.join(os.tmpdir(), `test-img-${Date.now()}.jxl`);
+    const testJpegOut = path.join(os.tmpdir(), `test-out-${Date.now()}.jpg`);
+    cp.execFileSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'testsrc=duration=1:size=64x64:rate=1', '-vframes', '1', '-c:v', 'libjxl', testJxlPath], { stdio: 'ignore' });
+    if (fs.existsSync(testJxlPath)) {
+      const realJxlBuf = fs.readFileSync(testJxlPath);
+      const realDecRes = await zjxl.decodeToJpeg(realJxlBuf);
+      assert.strictEqual(realDecRes.status_code, 1, 'decodeToJpeg on real JXL must return status 1');
+      assert(realDecRes.data.length > 100, 'decodeToJpeg must return actual decoded JPEG bytes');
+
+      const infoRes = await zjxl.getJxlInfo(realJxlBuf);
+      assert.strictEqual(infoRes.status_code, 1, 'getJxlInfo must return status 1');
+      assert.strictEqual(infoRes.width, 64, 'getJxlInfo width must be 64');
+      assert.strictEqual(infoRes.height, 64, 'getJxlInfo height must be 64');
+
+      const decompRes = await zjxl.jxlDecompressMulti({
+        localPath: testJxlPath,
+        tasks: [{ outputPath: testJpegOut, maxWidth: 32, maxHeight: 32 }]
+      });
+      assert.strictEqual(decompRes.status_code, 1, 'jxlDecompressMulti must return status 1');
+      assert(fs.existsSync(testJpegOut), 'jxlDecompressMulti must write destination JPEG file');
+      assert(fs.statSync(testJpegOut).size > 0, 'jxlDecompressMulti destination JPEG file must be non-empty');
+
+      try { fs.unlinkSync(testJxlPath); } catch (e) {}
+      try { fs.unlinkSync(testJpegOut); } catch (e) {}
+    }
+  } catch (e) {}
 
   // 10. Test mp4thumb
   console.log('Testing mp4thumb contract...');

@@ -300,7 +300,10 @@ function sanitizeZfilePath(rawUrl) {
     return null;
   }
   if (p.includes('\0')) return null;
-  if (p.startsWith('/media/')) p = p.substring(6);
+  if (p.startsWith('/media/') && (!fs.existsSync(p) || p.startsWith('/media/home/') || p.startsWith('/media/tmp/'))) {
+    const stripped = p.substring(6);
+    if (stripped.startsWith('/')) p = stripped;
+  }
   p = path.normalize(p);
   if (!path.isAbsolute(p)) return null;
 

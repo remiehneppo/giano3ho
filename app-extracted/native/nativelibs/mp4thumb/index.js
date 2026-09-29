@@ -1,6 +1,7 @@
 
 const fs = require('fs');
 const cp = require('child_process');
+const path = require('path');
 
 let CachedModule = {};
 
@@ -34,6 +35,10 @@ function getLib() {
                         }
 
                         return new Promise((resolve) => {
+                            try {
+                                fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+                            } catch (e) {}
+
                             const args = ['-y', '-i', inputPath, '-ss', '00:00:00', '-vframes', '1'];
                             if (maxWidth && maxHeight) {
                                 args.push('-vf', `scale='min(${maxWidth},iw)':'min(${maxHeight},ih)':force_original_aspect_ratio=decrease`);
@@ -42,7 +47,7 @@ function getLib() {
                             } else if (maxHeight) {
                                 args.push('-vf', `scale=-1:'min(${maxHeight},ih)'`);
                             }
-                            args.push(outputPath);
+                            args.push('-q:v', '3', outputPath);
 
                             try {
                                 currentProc = cp.execFile('ffmpeg', args, (err) => {
@@ -67,6 +72,7 @@ function getLib() {
                             return false;
                         }
                         try {
+                            fs.mkdirSync(path.dirname(outputPath), { recursive: true });
                             const args = ['-y', '-i', inputPath, '-ss', '00:00:00', '-vframes', '1'];
                             if (maxWidth && maxHeight) {
                                 args.push('-vf', `scale='min(${maxWidth},iw)':'min(${maxHeight},ih)':force_original_aspect_ratio=decrease`);
@@ -75,7 +81,7 @@ function getLib() {
                             } else if (maxHeight) {
                                 args.push('-vf', `scale=-1:'min(${maxHeight},ih)'`);
                             }
-                            args.push(outputPath);
+                            args.push('-q:v', '3', outputPath);
                             cp.execFileSync('ffmpeg', args, { stdio: 'ignore' });
                             return fs.existsSync(outputPath);
                         } catch (e) {

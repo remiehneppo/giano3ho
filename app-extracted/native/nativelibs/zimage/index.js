@@ -1,5 +1,9 @@
 //credit by taivlc,binhlq2
 
+const fs = require('fs');
+const cp = require('child_process');
+const path = require('path');
+
 const LIB_NOT_FOUND = -1;
 const NOT_SUPPORT = -2;
 const LIB_EXTRACT_NOT_FOUND = -3;
@@ -47,11 +51,35 @@ function getLib(options) {
 	const getLibInstance = () => {
 		return new Promise((resolve, reject) => {
 			if (!os) {
-				// Linux fallback stub to avoid unhandled rejection
+				// Linux Platform Capability Adapter via ffmpeg
 				resolve({
 					Image: {
-						thumbnail: (buffer) => Promise.resolve(buffer),
+						thumbnail: async (buffer, width, height, format, quality) => {
+							try {
+								const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
+								if (buf.length > 0 && width > 0 && height > 0) {
+									const fmt = (typeof format === 'string' && format.toLowerCase().includes('png')) ? 'png' : 'mjpeg';
+									const args = ['-y', '-i', 'pipe:0', '-vf', `scale=${width}:${height}`, '-f', 'image2', '-c:v', fmt, 'pipe:1'];
+									const proc = cp.spawnSync('ffmpeg', args, { input: buf, timeout: 15000, maxBuffer: 50 * 1024 * 1024 });
+									if (proc.status === 0 && proc.stdout && proc.stdout.length > 0) {
+										return proc.stdout;
+									}
+								}
+							} catch (e) {}
+							return buffer;
+						},
 						resizeQA: (inputPath, outputPath, width, height, quality, _, callback) => {
+							try {
+								if (inputPath && outputPath && fs.existsSync(inputPath)) {
+									fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+									const args = ['-y', '-i', inputPath];
+									if (width > 0 && height > 0) {
+										args.push('-vf', `scale=${width}:${height}`);
+									}
+									args.push('-q:v', '3', outputPath);
+									cp.execFileSync('ffmpeg', args, { stdio: 'ignore' });
+								}
+							} catch (e) {}
 							if (typeof callback === 'function') callback(null, { inputPath, outputPath });
 							return Promise.resolve({ inputPath, outputPath });
 						}
