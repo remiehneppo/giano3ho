@@ -75,6 +75,7 @@ function getLib() {
 
         const rootDrive = {
             name: '/',
+            path: '/',
             label: 'Root',
             isExternal: false,
             totalSpace: total,
@@ -83,8 +84,8 @@ function getLib() {
 
         const drives = {
             '/': rootDrive,
-            'C:': { ...rootDrive, name: 'C:' },
-            'C:\\': { ...rootDrive, name: 'C:\\' },
+            'C:': { ...rootDrive, name: 'C:', path: 'C:\\' },
+            'C:\\': { ...rootDrive, name: 'C:\\', path: 'C:\\' },
         };
 
         return new Proxy(drives, {
@@ -96,6 +97,7 @@ function getLib() {
                     }
                     return {
                         name: prop,
+                        path: prop,
                         label: prop,
                         isExternal: false,
                         totalSpace: total,

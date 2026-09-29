@@ -29,6 +29,8 @@ async function runTests() {
   assert(diskInfo['/'].totalSpace > 0, 'totalSpace must be > 0');
   assert(diskInfo['/'].usedSpace >= 0, 'usedSpace must be >= 0');
   assert.strictEqual(diskInfo['/'].isExternal, false, 'Root drive should not be external');
+  assert.strictEqual(diskInfo['/'].path, '/', 'Root drive must have path: /');
+  assert.strictEqual(diskInfo['C:'].path, 'C:\\', 'C: drive must have path: C:\\');
 
   // Test proxy fallback for Windows drive queries
   assert(diskInfo['C:'] && diskInfo['C:'].totalSpace > 0, "diskInfo['C:'] must resolve safely");
@@ -161,6 +163,29 @@ async function runTests() {
   assert.deepStrictEqual(decRes.data, testBuf, 'decodeToJpeg must resolve with data buffer');
   const ready = await zjxl.moduleReady();
   assert.strictEqual(ready, true, 'moduleReady must resolve to true');
+
+  // 10. Test mp4thumb
+  console.log('Testing mp4thumb contract...');
+  const mp4thumb = nativelibs.mp4thumb();
+  assert(typeof mp4thumb === 'object', 'mp4thumb must be an object');
+  assert(typeof mp4thumb.generateThumbnail === 'function', 'generateThumbnail must be a function');
+  assert(typeof mp4thumb.cancel === 'function', 'cancel must be a function');
+  const genThumbRes = await mp4thumb.generateThumbnail('/non_existent_file.mp4', '/tmp/out.jpg', 100, 100, 'test-id');
+  assert.strictEqual(genThumbRes, false, 'generateThumbnail should resolve false on unsupported platform');
+  assert.doesNotThrow(() => mp4thumb.cancel('test-id'), 'cancel must not throw');
+
+  // 11. Test v8Profiles
+  console.log('Testing v8Profiles contract...');
+  const v8Profiles = nativelibs.v8Profiles();
+  assert(typeof v8Profiles === 'object', 'v8Profiles must be an object');
+  assert(typeof v8Profiles.startProfiling === 'function', 'startProfiling must be a function');
+  assert(typeof v8Profiles.stopProfiling === 'function', 'stopProfiling must be a function');
+  v8Profiles.startProfiling('test-profile');
+  const profile = v8Profiles.stopProfiling('test-profile');
+  assert(profile && typeof profile === 'object', 'stopProfiling must return profile object');
+  assert(typeof profile.delete === 'function', 'profile must have delete function');
+  assert(typeof profile.export === 'function', 'profile must have export function');
+  assert.doesNotThrow(() => profile.delete(), 'profile.delete must not throw');
 
   console.log('✅ ALL NATIVELIBS CONTRACT TESTS PASSED SUCCESSFULLY!');
 }

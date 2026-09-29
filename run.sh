@@ -46,7 +46,12 @@ find_electron() {
     done
 
     # Check local development directories with glob expansion
-    for bin in "$SCRIPT_DIR"/../node_modules/.bin/electron \
+    for bin in "$SCRIPT_DIR"/node_modules/.bin/electron \
+               "$SCRIPT_DIR"/../node_modules/.bin/electron \
+               "$HOME"/.nvm/versions/node/*/bin/electron \
+               "$HOME"/.asdf/shims/electron \
+               "$HOME"/.local/share/fnm/current/bin/electron \
+               "$HOME"/.volta/bin/electron \
                "$HOME"/AI/*/node_modules/.bin/electron \
                "$HOME"/.cache/electron/*/electron; do
         if [ -x "$bin" ]; then

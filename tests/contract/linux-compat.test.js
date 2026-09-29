@@ -227,6 +227,54 @@ async function runTests() {
   assert.strictEqual(themeManager.handleHotkey(null, { key: 'F10' }), true, 'F10 key should be handled');
   assert.strictEqual(themeManager.handleHotkey(null, { key: 'F11' }), false, 'F11 key should not be handled');
 
+  // 6. Test Windows CLI shims on Linux (powershell.exe, wmic)
+  console.log('Testing Windows CLI Shims on Linux...');
+  _internals.installCliShims();
+  const cp = require('child_process');
+
+  // Test powershell.exe signature verification
+  const sigResult = await new Promise((resolve) => {
+    cp.execFile('powershell.exe', ['-Command', 'Get-AuthenticodeSignature test | ConvertTo-Json'], (err, stdout) => {
+      resolve(JSON.parse(stdout));
+    });
+  });
+  assert.strictEqual(sigResult.Status, 0, 'powershell.exe signature verification shim must report Status: 0');
+
+  // Test powershell.exe ConvertTo-Json
+  const jsonTest = cp.execFileSync('powershell.exe', ['-Command', 'ConvertTo-Json test']);
+  assert(jsonTest.toString().includes('test'), 'powershell.exe ConvertTo-Json shim must return test');
+
+  // Test wmic os architecture
+  const wmicArch = await new Promise((resolve) => {
+    const proc = cp.spawn('wmic', ['os', 'get', 'osarchitecture']);
+    let out = '';
+    proc.stdout.on('data', d => { out += d.toString(); });
+    proc.on('close', code => resolve({ out, code }));
+  });
+  assert.strictEqual(wmicArch.code, 0, 'wmic shim must exit with code 0');
+  assert(wmicArch.out.includes('64-bit'), 'wmic shim must report 64-bit architecture');
+
+  // Test powershell.exe batch launcher (update on quit)
+  const psBatch = await new Promise((resolve) => {
+    const proc = cp.spawn('powershell.exe', ['-WindowStyle', 'Hidden', '-File', 'update.bat']);
+    proc.on('close', code => resolve(code));
+  });
+  assert.strictEqual(psBatch, 0, 'powershell.exe batch launcher shim must exit with code 0');
+
+  // 7. Test Linux Drive & Migrate Config Invariants
+  console.log('Testing Linux Drive & Migrate Config Invariants...');
+  const testUserDataDir = path.join(os.tmpdir(), `zalo-test-userdata-${Date.now()}`);
+  const testCalDir = path.join(testUserDataDir, 'cal');
+  _internals.initLinuxConfig(testCalDir);
+
+  const migrateConfig = path.join(testUserDataDir, 'migrate-config.json');
+  assert(fs.existsSync(migrateConfig), 'migrate-config.json must be created in userDataDir');
+  const migrateJson = JSON.parse(fs.readFileSync(migrateConfig, 'utf8'));
+  assert.strictEqual(migrateJson.zalopc_m_c, true, 'zalopc_m_c must be true on Linux to avoid AppData fallback');
+
+  // Clean up test userData dir
+  try { fs.rmSync(testUserDataDir, { recursive: true, force: true }); } catch (e) {}
+
   console.log('✅ ALL LINUX-COMPAT COORDINATOR TESTS PASSED SUCCESSFULLY!');
 }
 

@@ -27,6 +27,13 @@ CpuProfile.prototype.getHeader = function() {
   }
 }
 
+CpuProfile.prototype.delete = function() {};
+CpuProfile.prototype.export = function(cb) {
+  const data = JSON.stringify(this.getHeader());
+  if (typeof cb === 'function') cb(null, data);
+  return Promise.resolve(data);
+};
+
 var startTime, endTime;
 var activeProfiles = [];
 

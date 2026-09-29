@@ -18,21 +18,15 @@ function getLib() {
     }
 
     if (!thumbModule) {
-        thumbModule = new class {
-            MP4Thumb() {
+        thumbModule = {
+            MP4Thumb: function MP4Thumb() {
                 return {
-                    generateThumbnailAsync: () => {
-                        throw {error: 'LIB_ERR', message: 'mp4thumb native module not available on this platform'};
-                    },
-                    generateThumbnail: () => {
-                        throw {error: 'LIB_ERR', message: 'mp4thumb native module not available on this platform'};
-                    },
-                    cancel: () => {
-                        throw {error: 'LIB_ERR', message: 'mp4thumb native module not available on this platform'};
-                    }
-                }
+                    generateThumbnailAsync: async () => false,
+                    generateThumbnail: () => false,
+                    cancel: () => {}
+                };
             }
-        }();
+        };
     }
 
     /**

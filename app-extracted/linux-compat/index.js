@@ -49,11 +49,20 @@ function installPathPatcher() {
 function initLinuxConfig(customCalDir) {
   const homeDir = os.homedir();
   const calDir = customCalDir || process.env.ZALO_CAL_DIR || path.join(homeDir, '.config', 'ZaloData', 'cal');
+  const zaloDataDir = path.dirname(calDir);
 
   try {
     fs.mkdirSync(calDir, { recursive: true });
   } catch (err) {
     // Directory already exists or handled gracefully
+  }
+
+  // Ensure migration status is marked complete on Linux to prevent falling back to Windows AppData path
+  const migrateConfigPath = path.join(zaloDataDir, 'migrate-config.json');
+  if (!fs.existsSync(migrateConfigPath)) {
+    try {
+      fs.writeFileSync(migrateConfigPath, JSON.stringify({ zalopc_m_c: true }), 'utf8');
+    } catch (err) {}
   }
 
   const defaultMetaContent = JSON.stringify({
@@ -550,6 +559,120 @@ function installWindowHooks() {
 }
 
 // ==========================================
+// 6. Windows CLI Shims for Linux (powershell.exe, wmic)
+// ==========================================
+function installCliShims() {
+  const cp = require('child_process');
+  const { EventEmitter } = require('events');
+  const { Readable, Writable } = require('stream');
+
+  function createMockChildProcess(stdoutData = '', exitCode = 0) {
+    const proc = new EventEmitter();
+    proc.pid = 100000 + Math.floor(Math.random() * 10000);
+    const stdout = new Readable({
+      read() {
+        this.push(stdoutData);
+        this.push(null);
+      }
+    });
+    const stderr = new Readable({ read() { this.push(null); } });
+    proc.stdout = stdout;
+    proc.stderr = stderr;
+    proc.stdin = new Writable({ write(chunk, enc, cb) { cb(); } });
+    proc.unref = () => proc;
+    proc.ref = () => proc;
+    proc.kill = () => true;
+
+    let exitEmitted = false;
+    const emitExit = () => {
+      if (exitEmitted) return;
+      exitEmitted = true;
+      process.nextTick(() => {
+        proc.emit('exit', exitCode, null);
+        proc.emit('close', exitCode, null);
+      });
+    };
+    stdout.on('end', emitExit);
+    setImmediate(emitExit);
+    return proc;
+  }
+
+  if (cp._linuxCompatShimsInstalled) return;
+  cp._linuxCompatShimsInstalled = true;
+
+  const originalSpawn = cp.spawn;
+  cp.spawn = function(command, args, options) {
+    const base = String(command).split(/[\\/]/).pop().toLowerCase();
+    if (base === 'wmic' || base === 'wmic.exe') {
+      const argStr = Array.isArray(args) ? args.join(' ') : String(args || '');
+      if (/osarchitecture/i.test(argStr)) {
+        return createMockChildProcess('OSArchitecture\r\n64-bit\r\n', 0);
+      }
+      if (/process/i.test(argStr)) {
+        return createMockChildProcess('CreationDate KernelModeTime ParentProcessId ProcessId UserModeTime WorkingSetSize\r\n', 0);
+      }
+      return createMockChildProcess('', 0);
+    }
+    if (base === 'powershell' || base === 'powershell.exe') {
+      return createMockChildProcess('', 0);
+    }
+    return originalSpawn.apply(this, arguments);
+  };
+
+  const originalExecFile = cp.execFile;
+  cp.execFile = function(file, args, options, callback) {
+    let cb = typeof args === 'function' ? args : (typeof options === 'function' ? options : callback);
+    const base = String(file).split(/[\\/]/).pop().toLowerCase();
+    if (base === 'powershell' || base === 'powershell.exe') {
+      const argStr = Array.isArray(args) ? args.join(' ') : String(args || '');
+      if (/Get-AuthenticodeSignature/i.test(argStr)) {
+        const mockResult = JSON.stringify({ Status: 0, SignerCertificate: { Status: 0 } });
+        if (typeof cb === 'function') {
+          process.nextTick(() => cb(null, mockResult, ''));
+        }
+        return createMockChildProcess(mockResult, 0);
+      }
+      if (typeof cb === 'function') {
+        process.nextTick(() => cb(null, '', ''));
+      }
+      return createMockChildProcess('', 0);
+    }
+    if (base === 'wmic' || base === 'wmic.exe') {
+      const argStr = Array.isArray(args) ? args.join(' ') : String(args || '');
+      let res = '';
+      if (/osarchitecture/i.test(argStr)) {
+        res = 'OSArchitecture\r\n64-bit\r\n';
+      }
+      if (typeof cb === 'function') {
+        process.nextTick(() => cb(null, res, ''));
+      }
+      return createMockChildProcess(res, 0);
+    }
+    return originalExecFile.apply(this, arguments);
+  };
+
+  const originalExecFileSync = cp.execFileSync;
+  cp.execFileSync = function(file, args, options) {
+    const base = String(file).split(/[\\/]/).pop().toLowerCase();
+    if (base === 'powershell' || base === 'powershell.exe') {
+      const argStr = Array.isArray(args) ? args.join(' ') : String(args || '');
+      if (/ConvertTo-Json/i.test(argStr)) {
+        return Buffer.from('test\r\n');
+      }
+      return Buffer.from('');
+    }
+    if (base === 'wmic' || base === 'wmic.exe') {
+      const argStr = Array.isArray(args) ? args.join(' ') : String(args || '');
+      if (/osarchitecture/i.test(argStr)) {
+        return Buffer.from('OSArchitecture\r\n64-bit\r\n');
+      }
+      return Buffer.from('');
+    }
+    return originalExecFileSync.apply(this, arguments);
+  };
+}
+
+// ==========================================
 // Central Coordinator Entry Point
 // ==========================================
 function initLinuxCompat(options = {}) {
@@ -583,7 +706,10 @@ function initLinuxCompat(options = {}) {
   // 4. Exception & rejection resilience
   installErrorHandler();
 
-  // 5. Window hooks & DevTools
+  // 5. Windows CLI shims for Linux
+  installCliShims();
+
+  // 6. Window hooks & DevTools
   if (enableDevTools) {
     installWindowHooks();
   }
@@ -598,6 +724,7 @@ module.exports = {
     closeDiagnosticStream,
     writeDiagnostic,
     installErrorHandler,
+    installCliShims,
     clearRejectedLoginCookie,
     syncAuthCookie,
     AUTH_COOKIE_TARGETS,
